@@ -38,7 +38,7 @@ def blendshape_to_skeltarget(stage, prim, blendshape_name, output_path):
 def calculate_skeltarget_verts(stage, prim, skeltarget_path):
     '''Applies the skeletal transformations defined in a .skeltarget file to the skeleton joints. There should be a mesh
     in the scene that is already bound and skinned to the skeleton.
-    
+
     Parameters:
     ------------
     stage: Usd.Stage
@@ -113,7 +113,7 @@ def separate_blendshape(stage, prim, blendshape, new_blendshape_path, skeltarget
 
 def bind_target(stage, prim, new_blendshape_path):
     '''Binds the new blendshape to the mesh.
-    
+
     Parameters:
     ------------
     stage: Usd.Stage
@@ -158,5 +158,5 @@ def compute_blendshape_points(body: Usd.Prim, blendshape, weight) -> np.array:
         # print(f"Changed: {changed}")
     else:
         raise ValueError("Failed to compute deformed points")
-    
+
     return new_points
