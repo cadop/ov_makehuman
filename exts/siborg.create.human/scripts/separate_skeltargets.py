@@ -162,3 +162,40 @@ def compute_blendshape_points(body: Usd.Prim, blendshape, weight) -> np.array:
         raise ValueError("Failed to compute deformed points")
 
     return new_points
+
+
+def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, time: int):
+    """Compute the joint transforms for a skeleton from a set of points. Requires that the skeleton has customdata 
+    with a mapping from each bone to its set of vertices. Transforms are returned in local space."""
+    # Get mapping from each bone to its set of vertices
+    bone_vertices_idxs = resize_skel.GetPrim().GetCustomData()
+
+    # Query the resizing skeleton
+    skel_cache = UsdSkel.Cache()
+    skel_query = skel_cache.GetSkelQuery(resize_skel)
+
+    # Get the list of bones
+    joints = skel_query.GetJointOrder()
+
+    # Get the points attribute as a numpy array for multi-indexing
+    points = np.array(points)
+    # Get transforms for each bone
+    xforms = []
+    for joint in joints:
+        vert_idxs = np.array(bone_vertices_idxs[joint])
+        verts = points[vert_idxs]
+        xforms.append(compute_transform(verts))
+
+    xforms = Vt.Matrix4dArray().FromNumpy(np.array(xforms))
+    topo = UsdSkel.Topology(joints)
+    return UsdSkel.ComputeJointLocalTransforms(topo, xforms, Gf.Matrix4d(np.eye(4)))
+
+
+def compute_transform(head_vertices):
+    """Compute the rest and bind transforms for a joint"""
+    head_position = np.mean(head_vertices, axis=0)
+    # Bind transform is in world space
+    transform = np.eye(4)
+    transform[:3, 3] = head_position
+
+    return Gf.Matrix4d(transform.T)
