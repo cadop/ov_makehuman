@@ -67,8 +67,9 @@ def separate_blendshape(stage, prim, blendshape, new_blendshape_path, skeltarget
     # Calculate the new vertices of the blendshape after the skeletal transformations have been applied
     skel_deformation = calculate_skeltarget_verts(stage, prim, skeltarget_path)
 
-    # Apply the blendshape to the mesh at 100% weight
-    # Calculate the new vertices of the blendshape
+    # Apply the blendshape to the mesh at 100% weight and calculate the new vertices of the blendshape
+    body = prim.GetChild("body")
+    points = compute_blendshape_points(body, blendshape, 1.0)
     # Subtract the skeletal deformation from the blendshape deformation
     # Create a new blendshape with the corrected vertices
     # Create the new blendshape
@@ -91,7 +92,7 @@ def bind_target(stage, prim, new_blendshape_path):
         The path to the new blendshape to be bound to the mesh (should probably be inside the skelroot already)'''
 
 
-def compute_new_points(body: Usd.Prim, blendshape, weight) -> np.array:
+def compute_blendshape_points(body: Usd.Prim, blendshape, weight) -> np.array:
     '''Compute the new points of a mesh after a blendshape has been applied.'''
     mesh_binding = UsdSkel.BindingAPI(body)
     blend_query = UsdSkel.BlendShapeQuery(mesh_binding)
