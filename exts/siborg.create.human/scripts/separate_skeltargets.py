@@ -78,7 +78,7 @@ def separate_blendshape(stage, prim, blendshape, new_blendshape_path, skeltarget
     return new_blendshape
 
 
-def apply_target(stage, prim, new_blendshape_path):
+def bind_target(stage, prim, new_blendshape_path):
     '''Binds the new blendshape to the mesh.
     
     Parameters:
@@ -88,4 +88,5 @@ def apply_target(stage, prim, new_blendshape_path):
     prim: Usd.Prim
         The skelroot containing and mesh
     new_blendshape_path: str
+        The path to the new blendshape to be bound to the mesh (should probably be inside the skelroot already)'''
         The path to the new blendshape to be applied to the mesh (should probably be inside the skelroot already)'''
