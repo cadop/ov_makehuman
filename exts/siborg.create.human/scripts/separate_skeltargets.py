@@ -95,7 +95,6 @@ def compute_new_points(body: Usd.Prim, blendshape, weight) -> np.array:
     '''Compute the new points of a mesh after a blendshape has been applied.'''
     mesh_binding = UsdSkel.BindingAPI(body)
     blend_query = UsdSkel.BlendShapeQuery(mesh_binding)
-    blendshape = np.array(blendshape)
     # Use updated blendshape weights to compute subShapeWeights, blendShapeIndices, and subShapeIndices
     # Get just the blendshapes that apply to this mesh
     blendshapes_on_body = body.GetAttribute("skel:blendShapes").Get()
