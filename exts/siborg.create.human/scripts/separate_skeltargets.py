@@ -3,7 +3,7 @@
 # This script 
 
 import os
-from pxr import Usd, Sdf, UsdSkel, Tf, UsdGeom, Gf
+from pxr import Usd, Sdf, UsdSkel, Tf, UsdGeom, Gf,Vt
 import numpy as np
 import warnings
 from dataclasses import dataclass
@@ -89,4 +89,44 @@ def bind_target(stage, prim, new_blendshape_path):
         The skelroot containing and mesh
     new_blendshape_path: str
         The path to the new blendshape to be bound to the mesh (should probably be inside the skelroot already)'''
-        The path to the new blendshape to be applied to the mesh (should probably be inside the skelroot already)'''
+
+
+def compute_new_points(body: Usd.Prim, blendshape, weight) -> np.array:
+    '''Compute the new points of a mesh after a blendshape has been applied.'''
+    mesh_binding = UsdSkel.BindingAPI(body)
+    blend_query = UsdSkel.BlendShapeQuery(mesh_binding)
+    blendshape = np.array(blendshape)
+    # Use updated blendshape weights to compute subShapeWeights, blendShapeIndices, and subShapeIndices
+    # Get just the blendshapes that apply to this mesh
+    blendshapes_on_body = body.GetAttribute("skel:blendShapes").Get()
+    blendshapes_on_body = np.array(blendshapes_on_body)
+    blendshape = np.array(blendshape)
+    blendshape_on_body = blendshape[np.isin(blendshape, blendshapes_on_body)]
+    # Zero out the weights for all blendshapes applied to the body
+    weights_on_body = np.zeros(len(blendshapes_on_body))
+    # Set the weight for the blendshape we're interested in
+    weights_on_body[np.isin(blendshapes_on_body, blendshape_on_body)] = weight
+    # Compute the new points
+    subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(weights_on_body)
+    blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
+    subShapePointOffset = blend_query.ComputeSubShapePointOffsets()
+    current_points = body.GetAttribute("points").Get()
+    points = np.array(current_points)
+    points = Vt.Vec3fArray().FromNumpy(np.copy(points))
+    success = blend_query.ComputeDeformedPoints(subShapeWeights,
+                                                blendShapeIndices,
+                                                subShapeIndices,
+                                                blendShapePointIndices,
+                                                subShapePointOffset,
+                                                points)
+    if success:
+        # Compare old points to new points
+        old_points = np.array(current_points)
+        new_points = np.array(points)
+        # See what changed
+        changed = np.where(old_points != new_points)[0]
+        # print(f"Changed: {changed}")
+    else:
+        raise ValueError("Failed to compute deformed points")
+    
+    return new_points
