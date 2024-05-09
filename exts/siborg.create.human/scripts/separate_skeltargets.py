@@ -68,14 +68,16 @@ def calculate_skeltarget_verts(stage, prim, skeltarget_path):
         skeltarget = json.load(f)
     # Apply the skeletal transformations to the skeleton joints
     xforms = Vt.Matrix4dArray()
-    for joint_path, xform in skeltarget["skeleton"].items():
+    for _, xform in skeltarget["skeleton"].items():
         translation = Gf.Vec3d(xform["translation"])
         rotation = Gf.Quatd(xform["rotation"])
         scale = Gf.Vec3d(xform["scale"])
         xform = Gf.Matrix4d(translation, rotation, scale)
-        xforms.append(xform)        
+        xforms.append(xform)
     # Calculate the new vertices of the mesh
-    success = UsdSkel.SkinningQuery.ComputeSkinnedPoints(xforms, points, time=0)
+    skelCache = UsdSkel.Cache()
+    skelQuery = skelCache.GetSkelQuery(skel)
+    success = skelQuery.ComputeSkinnedPoints(xforms, points, time=0)
     if not success:
         raise ValueError("Failed to compute skinned points")
     return points
