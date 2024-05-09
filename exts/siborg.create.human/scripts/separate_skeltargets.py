@@ -16,10 +16,11 @@ def blendshape_to_skeltarget(stage, prim, blendshape_name, output_path):
     joints when referencing the joint helper geometry after the blendshape has been applied.'''
 
     # Apply the blendshape to the mesh at 100% weight
-
-    # Calculate the new vertices
-
+    body = prim.GetChild("body")
+    points = compute_blendshape_points(body, blendshape_name, 1.0)
     # Move the skeleton to the points defined by the helper geometry
+    skel = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    xforms = joints_from_points(skel, points, 0)
 
     # Save the skeletal transformations to a .skeltarget file. A .skeltarget file is named after the blendshape it
     # corresponds to and takes the form of a JSON file with the following structure:
@@ -33,6 +34,20 @@ def blendshape_to_skeltarget(stage, prim, blendshape_name, output_path):
     #         }
     #     }
     # }
+    joints = skel.GetJointsAttr()
+    data = {"blendshape": blendshape_name, "skeleton": {}}
+    for joint, xform in zip(joints, xforms):
+        translation = list(xform.ExtractTranslation())
+        rotation = list(xform.ExtractRotation().GetQuaternion())
+        scale = list(xform.ExtractScale())
+        data["skeleton"][joint.GetPath().PathString] = {
+            "translation": translation,
+            "rotation": rotation,
+            "scale": scale
+        }
+
+    with open(output_path, 'w') as f:
+        json.dump(data, f, indent=4)
 
 
 def calculate_skeltarget_verts(stage, prim, skeltarget_path):
@@ -72,7 +87,10 @@ def calculate_skeltarget_verts(stage, prim, skeltarget_path):
         translation = Gf.Vec3d(xform["translation"])
         rotation = Gf.Quatd(xform["rotation"])
         scale = Gf.Vec3d(xform["scale"])
-        xform = Gf.Matrix4d(translation, rotation, scale)
+        xform = Gf.Matrix4d()
+        xform.SetTranslate(translation)
+        xform.SetRotate(rotation)
+        xform.SetScale(scale)
         xforms.append(xform)
     # Calculate the new vertices of the mesh
     skelCache = UsdSkel.Cache()
