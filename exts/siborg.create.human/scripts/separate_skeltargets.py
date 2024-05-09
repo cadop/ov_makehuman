@@ -99,12 +99,10 @@ def compute_new_points(body: Usd.Prim, blendshape, weight) -> np.array:
     # Get just the blendshapes that apply to this mesh
     blendshapes_on_body = body.GetAttribute("skel:blendShapes").Get()
     blendshapes_on_body = np.array(blendshapes_on_body)
-    blendshape = np.array(blendshape)
-    blendshape_on_body = blendshape[np.isin(blendshape, blendshapes_on_body)]
     # Zero out the weights for all blendshapes applied to the body
     weights_on_body = np.zeros(len(blendshapes_on_body))
     # Set the weight for the blendshape we're interested in
-    weights_on_body[np.isin(blendshapes_on_body, blendshape_on_body)] = weight
+    weights_on_body[np.isin(blendshape, blendshapes_on_body)] = weight
     # Compute the new points
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(weights_on_body)
     blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
