@@ -411,7 +411,10 @@ def compute_new_points(body: Usd.Prim, animation: UsdSkel.Animation, time=0) -> 
     blendshapes_on_body = body.GetAttribute("skel:blendShapes").Get()
     blendshapes_on_body = np.array(blendshapes_on_body)
     weights_on_body = current_weights[np.isin(current_blendshapes, blendshapes_on_body)]
-    current_blendshapes = current_blendshapes[np.isin(current_blendshapes, blendshapes_on_body)]
+    # Noticed while working on separate_skeltargets.py that the this line is useless. We don't use
+    # the blendshapes_on_body variable anywhere else in the function so we don't need to filter the blendshapes,
+    # we just need to filter the weights
+    # current_blendshapes = current_blendshapes[np.isin(current_blendshapes, blendshapes_on_body)]
     current_weights = Vt.FloatArray().FromNumpy(weights_on_body)
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(current_weights)
     blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
