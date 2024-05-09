@@ -11,7 +11,7 @@ from typing import List
 import json
 
 
-def blendshape_to_skeltarget(stage, prim, blendshape_name, output_path):
+def blendshape_to_skeltarget(prim, blendshape_name, output_path):
     '''Creates a .skeltarget file for a given blendshape. The file contains the transformations applied to the skeleton
     joints when referencing the joint helper geometry after the blendshape has been applied.'''
 
@@ -50,14 +50,12 @@ def blendshape_to_skeltarget(stage, prim, blendshape_name, output_path):
         json.dump(data, f, indent=4)
 
 
-def calculate_skeltarget_verts(stage, prim, skeltarget_path):
+def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array: 
     '''Applies the skeletal transformations defined in a .skeltarget file to the skeleton joints. There should be a mesh
     in the scene that is already bound and skinned to the skeleton.
 
     Parameters:
     ------------
-    stage: Usd.Stage
-        The stage containing the mesh and skeleton
     prim: Usd.Prim
         The skelroot containing the skeleton and mesh
     skeltarget_path: str
@@ -131,13 +129,11 @@ def separate_blendshape(stage, prim, blendshape, new_blendshape_path, skeltarget
     return new_blendshape
 
 
-def bind_target(stage, prim, new_blendshape_path):
+def bind_target(prim, new_blendshape_path):
     '''Binds the new blendshape to the mesh.
 
     Parameters:
     ------------
-    stage: Usd.Stage
-        The stage containing the mesh and skeleton
     prim: Usd.Prim
         The skelroot containing and mesh
     new_blendshape_path: str
