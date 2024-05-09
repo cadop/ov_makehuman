@@ -55,10 +55,42 @@ def calculate_skeltarget_verts(stage, prim, skeltarget_path):
 
     '''
 
-    # Load the .skeltarget file
-    # Apply the skeletal transformations to the skeleton joints
-    # Calculate the new vertices of the mesh
+    # Get the skeleton through the binding API. We assume the first target is the skeleton we want to use
+    skel = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    # Get the mesh points
+    body = prim.GetChild("body")
+    current_points = body.GetAttribute("points").Get()
+    points = np.array(current_points)
+    points = Vt.Vec3fArray().FromNumpy(np.copy(points))
 
+    # Load the .skeltarget file
+    with open(skeltarget_path, 'r') as f:
+        skeltarget = json.load(f)
+    # Apply the skeletal transformations to the skeleton joints
+    xforms = Vt.Matrix4dArray()
+    for joint_path, xform in skeltarget["skeleton"].items():
+        translation = Gf.Vec3d(xform["translation"])
+        rotation = Gf.Quatd(xform["rotation"])
+        scale = Gf.Vec3d(xform["scale"])
+        xform = Gf.Matrix4d(translation, rotation, scale)
+        xforms.append(xform)        
+    # Calculate the new vertices of the mesh
+    success = UsdSkel.SkinningQuery.ComputeSkinnedPoints(xforms, points, time=0)
+    if not success:
+        raise ValueError("Failed to compute skinned points")
+    return points
+
+
+def compose_xforms(source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Skeleton, time: int = 0) -> Vt.Matrix4dArray:
+    source_xforms = np.array(source_xforms)
+    skel_cache = UsdSkel.Cache()
+    skel_query = skel_cache.GetSkelQuery(target_skeleton)
+    xforms = skel_query.ComputeJointLocalTransforms(time)
+    xforms = np.array(xforms)
+    inv_xforms = np.linalg.inv(xforms)
+    new_xforms = np.matmul(source_xforms, inv_xforms)
+    new_xforms = np.matmul(new_xforms, xforms)
+    return Vt.Matrix4dArray().FromNumpy(new_xforms)
 
 def separate_blendshape(stage, prim, blendshape, new_blendshape_path, skeltarget_path):
     '''Applies the inverse of the skeletal transformations to the blendshape to isolate the deformation caused by the
