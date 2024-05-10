@@ -78,34 +78,45 @@ def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
     '''
 
     # Get the skeleton through the binding API. We assume the first target is the skeleton we want to use
-    skel = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
     # Get the mesh points
     body = prim.GetChild("body")
     current_points = body.GetAttribute("points").Get()
-    points = np.array(current_points)
-    points = Vt.Vec3fArray().FromNumpy(np.copy(points))
+    points = Vt.Vec3fArray(current_points)
 
     # Load the .skeltarget file
     with open(skeltarget_path, 'r') as f:
         skeltarget = json.load(f)
     # Apply the skeletal transformations to the skeleton joints
-    xforms = Vt.Matrix4dArray()
-    for _, xform in skeltarget["skeleton"].items():
-        translation = Gf.Vec3d(xform["translation"])
-        rotation = Gf.Quatd(xform["rotation"])
-        scale = Gf.Vec3d(xform["scale"])
-        xform = Gf.Matrix4d()
-        xform.SetTranslate(translation)
-        xform.SetRotate(rotation)
-        xform.SetScale(scale)
-        xforms.append(xform)
-    # Calculate the new vertices of the mesh
+    xforms = np.empty(16)
+    for joint, data in skeltarget["skeleton"].items():
+        translation = Gf.Vec3d(data["translation"])
+        rotation = Gf.Rotation(Gf.Vec3d(data["rotation"]["axis"]), data["rotation"]["angle"])
+        scale = Gf.Vec3d(data["scale"])
+        xform_mat = Gf.Matrix4d().SetTranslate(translation) * Gf.Matrix4d().SetRotate(rotation) * Gf.Matrix4d().SetScale(scale)
+        np.append(xforms, xform_mat)
+    xforms = Vt.Matrix4dArray().FromNumpy(xforms)
+
+    # Get the animation of the skeleton
+    anim_path = UsdSkel.BindingAPI(skel).GetAnimationSourceRel().GetTargets()[0]
+    anim = UsdSkel.Animation.Get(prim.GetStage(), anim_path)
+    anim.SetTransforms(xforms, 0)
+
+    # Query the skeleton and geometry, and compute the new vertices of the mesh
+    skelRoot = UsdSkel.Root(prim)
     skelCache = UsdSkel.Cache()
+    skelCache.Populate(skelRoot, Usd.PrimDefaultPredicate)
+    skinningQuery = skelCache.GetSkinningQuery(body)
     skelQuery = skelCache.GetSkelQuery(skel)
-    success = skelQuery.ComputeSkinnedPoints(xforms, points, time=0)
+    xformCache = UsdGeom.XformCache(0)
+    world_xforms = skelQuery.ComputeJointWorldTransforms(xformCache)
+
+    # Calculate the new vertices of the mesh
+    success = skinningQuery.ComputeSkinnedPoints(world_xforms, points, time=0)
     if not success:
         raise ValueError("Failed to compute skinned points")
-    return points
+    return np.array(points)
 
 
 def compose_xforms(source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Skeleton, time: int = 0) -> Vt.Matrix4dArray:
