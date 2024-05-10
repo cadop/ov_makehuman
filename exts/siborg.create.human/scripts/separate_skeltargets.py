@@ -3,11 +3,8 @@
 # This script 
 
 import os
-from pxr import Usd, Sdf, UsdSkel, Tf, UsdGeom, Gf,Vt
+from pxr import Usd, UsdSkel, UsdGeom, Gf, Vt
 import numpy as np
-import warnings
-from dataclasses import dataclass
-from typing import List
 import json
 
 
