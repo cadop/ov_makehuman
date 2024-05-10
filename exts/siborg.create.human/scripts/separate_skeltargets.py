@@ -119,21 +119,34 @@ def compose_xforms(source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Ske
     new_xforms = np.matmul(new_xforms, xforms)
     return Vt.Matrix4dArray().FromNumpy(new_xforms)
 
-def separate_blendshape(stage, prim, blendshape, new_blendshape_path, skeltarget_path):
-    '''Applies the inverse of the skeletal transformations to the blendshape to isolate the deformation caused by the
-    blendshape without the corresponding skeletal transformations. The resulting blendshape is added to the prim.'''
+def separate_blendshape(stage, prim, blendshape, skeltarget_path):
+    '''Subtracts the mesh deformation due to skeletal transformations from deformation caused by the blendshape  to
+    create a new blendshape without the corresponding skeletal transformation deformation. The resulting blendshape is
+    added to the prim.'''
+    # Get the mesh
+    body = prim.GetChild("body")
+    # Get the mesh points before any transformation is applied
+    default_points = body.GetAttribute("points").Get()
 
     # Calculate the new vertices of the blendshape after the skeletal transformations have been applied
-    skel_deformation = calculate_skeltarget_verts(stage, prim, skeltarget_path)
+    skel_deformation = calculate_skeltarget_verts(prim, skeltarget_path)
+    # Calculate the offset between the original mesh and the mesh after skeletal deformation
+    skeletal_deformation_offset = default_points - skel_deformation
 
-    # Apply the blendshape to the mesh at 100% weight and calculate the new vertices of the blendshape
-    body = prim.GetChild("body")
-    points = compute_blendshape_points(body, blendshape, 1.0)
-    # Subtract the skeletal deformation from the blendshape deformation
+    # Get the blendshape offsets
+    blendshape_offsets = np.array(blendshape.GetOffsetsAttr().Get())
+    blendshape_indices = np.array(blendshape.GetPointIndicesAttr().Get())
+
+    # Subtract the skeletal deformation from the blendshape offsets at any 
+    corrected_offsets = blendshape_offsets - skeletal_deformation_offset[blendshape_indices]
+
     # Create a new blendshape with the corrected vertices
     # Create the new blendshape
     targets_prim = stage.DefinePrim(prim.GetPath().AppendChild("skelfree_targets"))
-    new_blendshape = UsdSkel.BlendShape.Define(stage, targets_prim.GetPath().AppendChild(blendshape.GetName()))
+    new_blendshape = UsdSkel.BlendShape.Define(stage, targets_prim.GetPath().AppendChild(blendshape.GetPrim().GetName()))
+    new_blendshape.CreateOffsetsAttr().Set(Vt.Vec3fArray().FromNumpy(corrected_offsets))
+    new_blendshape.CreatePointIndicesAttr().Set(Vt.IntArray().FromNumpy(blendshape_indices))
+
     # Add custom attributes to the blendshape to store the skeletal transformations
     return new_blendshape
 
