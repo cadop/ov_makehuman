@@ -151,16 +151,19 @@ def separate_blendshape(stage, prim, blendshape, skeltarget_path):
     return new_blendshape
 
 
-def bind_target(prim, new_blendshape_path):
+def bind_target(prim, blendshape):
     '''Binds the new blendshape to the mesh.
 
     Parameters:
     ------------
     prim: Usd.Prim
         The skelroot containing and mesh
-    new_blendshape_path: str
-        The path to the new blendshape to be bound to the mesh (should probably be inside the skelroot already)'''
-
+    blendshape: BlendShape
+        The blendshape to be bound to the mesh (should probably be inside the skelroot already)'''
+    # Get the mesh
+    body = prim.GetChild("body")
+    meshBinding = UsdSkel.BindingAPI.Apply(body.GetPrim())
+    meshBinding.CreateBlendShapeTargetsRel().AddTarget(blendshape.GetPath())
 
 def compute_blendshape_points(body: Usd.Prim, blendshape, weight) -> np.array:
     '''Compute the new points of a mesh after a blendshape has been applied.'''
