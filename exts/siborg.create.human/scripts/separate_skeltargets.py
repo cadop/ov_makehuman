@@ -180,7 +180,9 @@ def add_blendshape_to_animation(prim, blendshape):
     np.append(blendshapes, blendshape.GetPath())
     anim.GetBlendShapesAttr().Set(blendshapes)
 
+def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
     '''Compute the new points of a mesh after a blendshape has been applied.'''
+    body = prim.GetChild("body")
     mesh_binding = UsdSkel.BindingAPI(body)
     blend_query = UsdSkel.BlendShapeQuery(mesh_binding)
     # Use updated blendshape weights to compute subShapeWeights, blendShapeIndices, and subShapeIndices
