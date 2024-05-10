@@ -16,10 +16,10 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
     joints when referencing the joint helper geometry after the blendshape has been applied.'''
 
     # Apply the blendshape to the mesh at 100% weight
-    body = prim.GetChild("body")
-    points = compute_blendshape_points(body, blendshape_name, 1.0)
+    points = compute_blendshape_points(prim, blendshape, 1.0)
     # Move the skeleton to the points defined by the helper geometry
-    skel = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
     xforms = joints_from_points(skel, points, 0)
 
     # Save the skeletal transformations to a .skeltarget file. A .skeltarget file is named after the blendshape it
@@ -29,34 +29,43 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
     #    "skeleton": {
     #         "joint_path": {
     #             "translation": [x, y, z],
-    #             "rotation": [x, y, z, w],
+    #             "rotation": {
+    #                 "axis": [x, y, z],
+    #                 "angle": angle
+    #             },
     #             "scale": [x, y, z]
     #         }
     #     }
     # }
-    joints = skel.GetJointsAttr()
+    Gf.Rotation.DecomposeRotation
+    joints = skel.GetJointsAttr().Get()
     data = {"blendshape": blendshape_name, "skeleton": {}}
     for joint, xform in zip(joints, xforms):
+        xform.Orthonormalize()
         translation = list(xform.ExtractTranslation())
-        rotation = list(xform.ExtractRotation().GetQuaternion())
-        scale = list(xform.ExtractScale())
-        data["skeleton"][joint.GetPath().PathString] = {
+
+        rotation = xform.ExtractRotation()
+        rotation = {"axis": list(rotation.GetAxis()), "angle": rotation.GetAngle()}
+
+        scale = list(Gf.Vec3d(*(v.GetLength() for v in xform.ExtractRotationMatrix())))
+        data["skeleton"][joint] = {
             "translation": translation,
             "rotation": rotation,
             "scale": scale
         }
 
-    with open("{output_path}.json", 'w') as f:
+    with open(output_path, 'w') as f:
         json.dump(data, f, indent=4)
 
     # Skeltargets are effectively just skeletal animations, so we can also save the skeletal transformations to a .usda
     stage = Usd.Stage.CreateInMemory()
     skelroot = UsdSkel.Root.Define(stage, prim.GetPath().AppendChild("skeltargets"))
-    stage.setDefaultPrim(skelroot.GetPrim())
-    skel = UsdSkel.Skeleton.Define(stage, skelroot.GetPath().AppendChild("skeleton_{blendshape_name}"))
-    topo = UsdSkel.Topology(joints)
-    skel.CreateJointsAttr(topo.GetJointOrder())
-    stage.GetRootLayer().Export("{output_path}.usda")
+    stage.SetDefaultPrim(skelroot.GetPrim())
+    skel = UsdSkel.Skeleton.Define(stage, skelroot.GetPath().AppendChild(f"skeleton_{blendshape_name}"))
+    skelCache = UsdSkel.Cache()
+    skelQuery = skelCache.GetSkelQuery(skel)
+    skel.CreateJointsAttr(skelQuery.GetJointOrder())
+    stage.GetRootLayer().Export(f"{output_path}.usda")
 
 
 def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array: 
