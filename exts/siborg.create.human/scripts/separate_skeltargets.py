@@ -11,7 +11,7 @@ from typing import List
 import json
 
 
-def blendshape_to_skeltarget(prim, blendshape_name, output_path):
+def blendshape_to_skeltarget(prim, blendshape, output_path):
     '''Creates a .skeltarget file for a given blendshape. The file contains the transformations applied to the skeleton
     joints when referencing the joint helper geometry after the blendshape has been applied.'''
 
