@@ -165,7 +165,21 @@ def bind_target(prim, blendshape):
     meshBinding = UsdSkel.BindingAPI.Apply(body.GetPrim())
     meshBinding.CreateBlendShapeTargetsRel().AddTarget(blendshape.GetPath())
 
-def compute_blendshape_points(body: Usd.Prim, blendshape, weight) -> np.array:
+
+def add_blendshape_to_animation(prim, blendshape):
+    '''Adds the blendshape to the animation of the first mesh on the prim.'''
+    # Get the first skeleton bound to the prim
+    skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
+    # Get the animation of the skeleton
+    anim_path = UsdSkel.BindingAPI(skel).GetAnimationSourceRel().GetTargets()[0]
+    anim = UsdSkel.Animation.Get(prim.GetStage(), anim_path)
+    # Get the blendshapes bound to the mesh
+    blendshapes = np.array(anim.GetBlendShapesAttr().Get())
+    # Add the new blendshape to the animation
+    np.append(blendshapes, blendshape.GetPath())
+    anim.GetBlendShapesAttr().Set(blendshapes)
+
     '''Compute the new points of a mesh after a blendshape has been applied.'''
     mesh_binding = UsdSkel.BindingAPI(body)
     blend_query = UsdSkel.BlendShapeQuery(mesh_binding)
