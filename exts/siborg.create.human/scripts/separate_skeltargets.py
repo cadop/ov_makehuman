@@ -46,8 +46,17 @@ def blendshape_to_skeltarget(prim, blendshape_name, output_path):
             "scale": scale
         }
 
-    with open(output_path, 'w') as f:
+    with open("{output_path}.json", 'w') as f:
         json.dump(data, f, indent=4)
+
+    # Skeltargets are effectively just skeletal animations, so we can also save the skeletal transformations to a .usda
+    stage = Usd.Stage.CreateInMemory()
+    skelroot = UsdSkel.Root.Define(stage, prim.GetPath().AppendChild("skeltargets"))
+    stage.setDefaultPrim(skelroot.GetPrim())
+    skel = UsdSkel.Skeleton.Define(stage, skelroot.GetPath().AppendChild("skeleton_{blendshape_name}"))
+    topo = UsdSkel.Topology(joints)
+    skel.CreateJointsAttr(topo.GetJointOrder())
+    stage.GetRootLayer().Export("{output_path}.usda")
 
 
 def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array: 
