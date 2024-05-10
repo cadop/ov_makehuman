@@ -271,3 +271,28 @@ def compute_transform(head_vertices):
     transform[:3, 3] = head_position
 
     return Gf.Matrix4d(transform.T)
+
+if __name__ == "__main__":
+    ext_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data_path = os.path.join(ext_path, "data")
+    stage = Usd.Stage.Open(os.path.join(data_path, "human_base.usd"))
+    prim = stage.GetDefaultPrim().GetChild("skel_root")
+    prim_path = prim.GetPath()
+
+    # Get the original blendshape
+    blendshape_name = "lowerlegs_height_incr"
+    blendshape_path = prim_path.AppendChild("targets").AppendChild("armslegs").AppendChild(blendshape_name)
+    blendshape = UsdSkel.BlendShape.Get(stage, blendshape_path)
+    
+    # Store the skeletal transformations in a .skeltarget file
+    skeltarget_path = os.path.join(data_path, "lowerlegs_height_incr.skeltarget")
+    blendshape_to_skeltarget(prim, blendshape_name, skeltarget_path)
+
+    # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
+    skelfree_blendshape = separate_blendshape(stage, prim, blendshape, skeltarget_path)
+    bind_target(prim, skelfree_blendshape)
+    add_blendshape_to_animation(prim, skelfree_blendshape)
+
+    # Save the new stage
+    stage.GetRootLayer().Export(os.path.join(data_path, "human_base_skelfree.usd"))
+    print("Done")
