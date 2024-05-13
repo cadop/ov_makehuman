@@ -41,11 +41,11 @@ def make_human():
 
     # Get all meshes that are not joints
     non_joint_meshes = [m for m in skel_root.GetPrim().GetChildren() if m.IsA(UsdGeom.Mesh) and not m.GetName().startswith("joint")]
-    rig = load_skel_json(os.path.join(ext_path, "data","rigs","default.mhskel"))
+    rig = load_skel_json(os.path.join(ext_path, "data","rigs","cmu_mb.mhskel"))
     verts = np.array(non_joint_meshes[0].GetPrim().GetAttribute("points").Get())
     skeleton = create_skeleton(stage, skel_root, rig, verts)
 
-    weights_json = os.path.join(ext_path, "data","rigs","default_weights.mhw")
+    weights_json = os.path.join(ext_path, "data","rigs","weights.cmu_mb.json")
     joint_indices, weights = vertices_to_weights(skeleton.GetJointNamesAttr().Get(), weights_json, skel_root.GetPrim().GetChildren()[0])
     elements = joint_indices.shape[1]
 
