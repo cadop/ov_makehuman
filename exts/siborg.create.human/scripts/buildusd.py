@@ -90,7 +90,7 @@ def make_human():
     blend_anim_path = blend_animation.GetPrim().GetPath()
     skeletonBinding.CreateAnimationSourceRel().AddTarget(blend_anim_path)
 
-    import_modifiers(stage, prim, modifiers_path, prim.GetChild("targets").GetPath().pathString)
+    import_modifiers(prim, modifiers_path)
 
     # Create a resizing skeleton for scaling. When blendshapes are applied, we will update the resizing skeleton
     # joints in the rest pose, and then transfer the bone lengths to the original skeleton.
@@ -264,7 +264,7 @@ class TargetModifier():
         # Modifiers either in the range [0,1] or [-1,1]
         self.max_val = 1
 
-def import_modifiers(stage, prim, modifiers_path, blendshapes_path):
+def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
     groups = defaultdict(list)
     modifiers = []
