@@ -7,6 +7,7 @@ import warnings
 from dataclasses import dataclass
 from typing import List
 import json
+from collections import defaultdict
 
 def make_human():
 
@@ -56,6 +57,8 @@ def make_human():
         meshBinding.CreateJointWeightsPrimvar(constant=False, elementSize=elements).Set(weights)
 
     prim = skel_root.GetPrim()
+    # Import the modifiers
+    modifiers_path = os.path.join(ext_path, "data", "modifiers", "modeling_modifiers.json")
     # Traverse the MakeHuman targets directory
     targets_dir = os.path.join(ext_path, "data", "targets", "armslegs")
     for dirpath, _, filenames in os.walk(targets_dir):
@@ -86,6 +89,8 @@ def make_human():
     skeletonBinding = UsdSkel.BindingAPI.Apply(skeleton.GetPrim())
     blend_anim_path = blend_animation.GetPrim().GetPath()
     skeletonBinding.CreateAnimationSourceRel().AddTarget(blend_anim_path)
+
+    import_modifiers(stage, prim, modifiers_path, prim.GetChild("targets").GetPath().pathString)
 
     # Create a resizing skeleton for scaling. When blendshapes are applied, we will update the resizing skeleton
     # joints in the rest pose, and then transfer the bone lengths to the original skeleton.
@@ -207,6 +212,94 @@ def compute_transforms(head_vertices, parent_vertices=None):
     rest_transform[:3, 3] = local_head
 
     return rest_transform.T, bind_transform.T
+
+
+class TargetModifier():
+    """ A class holding the data and methods for a modifier that targets specific blendshapes.
+    blend: str
+        The base name of the blendshape(s) to modify
+    min_blend: str, optional
+        Suffix (appended to `blendshape`) naming the blendshape for decreasing the value. Empty string by default.
+    max_blend: str, optional
+        Suffix (appended to `blendshape`) naming the blendshape for increasing the value. Empty string by default.
+    min_val: float, optional
+        The minimum value for the parameter. By default 0
+    max_val: float, optional
+        The maximum value for the parameter. By default 1    
+    image: str, optional
+        The path to the image to use for labeling. By default None
+    label: str, optional
+        The label to use for the modifier. By default is target basename capitalized.
+    """
+    def __init__(self, group, modifier_data: dict):
+        if "target" in modifier_data:
+            tlabel = modifier_data["target"].split("-")
+            if "|" in tlabel[len(tlabel) - 1]:
+                tlabel = tlabel[:-1]
+            if len(tlabel) > 1 and tlabel[0] == group:
+                label = tlabel[1:]
+            else:
+                label = tlabel
+            self.label = " ".join([word.capitalize() for word in label])
+            # Guess a suitable image path from modifier name
+            tlabel = modifier_data["target"].replace("|", "-").split("-")
+            # image = modifier_image(("%s.png" % "-".join(tlabel)).lower())
+            self.image = None
+        else:
+            print(f"No target for modifier {self.full_name}. Is this a macrovar modifier?")
+            return
+        # Blendshapes are named based on the modifier name
+        self.blend = Tf.MakeValidIdentifier(modifier_data["target"])        
+        self.min_blend = None
+        self.max_blend = None
+        if "min" in modifier_data and "max" in modifier_data:
+            # Some modifiers adress two blendshapes in either direction
+            self.min_blend = Tf.MakeValidIdentifier(f"{self.blend}_{modifier_data['min']}")
+            self.max_blend = Tf.MakeValidIdentifier(f"{self.blend}_{modifier_data['max']}")
+            self.blend = None
+            self.min_val = -1
+        else:
+            # Some modifiers only adress one blendshape
+            self.min_val = 0
+        # Modifiers either in the range [0,1] or [-1,1]
+        self.max_val = 1
+
+def import_modifiers(stage, prim, modifiers_path, blendshapes_path):
+    """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
+    groups = defaultdict(list)
+    modifiers = []
+    with open(modifiers_path, "r") as f:
+        data = json.load(f)
+        for group in data:
+            groupname = group["group"].capitalize()
+            for modifier_data in group["modifiers"]:
+                if "target" in modifier_data:
+                    modifier = TargetModifier(groupname, modifier_data)
+                elif "macrovar" in modifier_data:
+                    print("Macrovar modifiers not yet implemented")
+                    break
+                    # raise NotImplementedError("Macrovar modifiers not yet implemented")
+                    # modifier = MacroModifier(groupname, modifier_data)
+                # Add the modifier to the group
+                groups[groupname].append(modifier)
+                # Add the modifier to the list of all modifiers (for tracking changes)
+                modifiers.append(modifier)
+    # Write the modifiers to the prim
+    groups_custom_data = {}
+    for group, modifier_list in groups.items():
+        for modifier in modifier_list:
+            modifier_custom_data = {
+                # "label": modifier.label,
+                "min_val": modifier.min_val,
+                "max_val": modifier.max_val,
+                "blend": modifier.blend,
+                "min_blend": modifier.min_blend,
+                "max_blend": modifier.max_blend
+            }
+            # Remove None values
+            modifier_custom_data = {k: v for k, v in modifier_custom_data.items() if v is not None}
+            groups_custom_data[group] = modifier_custom_data
+            prim.SetCustomDataByKey("modifiers", groups_custom_data)
 
 
 def mhtarget_to_blendshapes(stage, prim, path : str) -> [Sdf.Path]:
