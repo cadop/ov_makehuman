@@ -495,48 +495,5 @@ def vertices_to_weights(joint_names: List[str], weights_json: str, mesh: UsdGeom
     return joint_indices, joint_weights
 
 
-# def load_obj(filename)
-#     # Read the file
-#     with open(filename, 'r') as f: data = f.readlines()
-
-#     # Remove comments
-#     newdata = [x.rstrip('\n').split() for x in data if '#' not in x]
-#     verts = np.asarray([x[1:] for x in newdata if x[0]=='v'], float)
-#     idx = np.arange(len(verts))
-#     uv = np.asarray([x[1:] for x in newdata if x[0]=='vt'], float)
-#     face = np.asarray([x[1:] for x in newdata if x[0]=='f']) # This should fail if it creates a ragged array
-#     face = np.apply_along_axis(lambda x: [y.split('/') for y in x], 0, face)
-#     # Get the face number without vertex coordinate
-#     face = np.asarray(face[:,0,:], int)
-
-#     obj_types = [x[0] for x in newdata]
-#     nptype = np.asarray(obj_types)
-
-#     print(nptype)
-
-#     idx = np.where(nptype == 'g', 1, 0)
-#     idx = np.asarray(idx, dtype=int)
-#     idx = np.nonzero(idx)
-
-#     print(idx)
-
-#     1/0
-
-#     group_data = []
-#     active_group = False
-
-#     # Go through the file and find the group ranges
-#     for i, ln in enumerate(newdata):
-#         if ln[0] =='g':
-#             # record the body name and index
-#             if not active_group:
-#                 group_data.append([ln[1], i])
-#                 active_group = True
-#             # Set the end index
-#             elif active_group: 
-#                 group_data[-1].extend([i])
-#                 active_group = False
-#     print(group_data)
-
 if __name__ == "__main__":
     make_human()
