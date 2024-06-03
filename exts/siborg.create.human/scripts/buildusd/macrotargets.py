@@ -1,6 +1,12 @@
 import json
 
 
+def calculate_center_of_range(parts):
+    min_value = min(part["lowest"] for part in parts)
+    max_value = max(part["highest"] for part in parts)
+    return (min_value + max_value) / 2
+
+
 def calculate_weight_for_part(part, value):
     lower_bound = part["lowest"]
     upper_bound = part["highest"]
@@ -15,9 +21,9 @@ def calculate_weight_for_part(part, value):
 
 def calculate_weights_for_target(macrotargets, values):
     weights = {}
-    for target, value in values.items():
-        parts = macrotargets[target]["parts"]
-        for part in parts:
+    for target, parts in macrotargets.items():
+        value = values.get(target, calculate_center_of_range(parts["parts"]))  # Use center if value not provided
+        for part in parts["parts"]:
             weight = calculate_weight_for_part(part, value)
             if weight:
                 weights[target] = weight
