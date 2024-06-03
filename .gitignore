@@ -32,6 +32,11 @@ exts/siborg.create.human/data/*
 !exts/siborg.create.human/data/human_base_skelfree.usda
 !exts/siborg.create.human/data/*example.usda
 
+!exts/siborg.create.human/data/targets/
+exts/siborg.create.human/data/targets/*
+!exts/siborg.create.human/data/targets/macrodetails/
+!exts/siborg.create.human/data/targets/macrodetails/**/*.target
+
 !exts/siborg.create.human/data/*.skeltarget
 
 !exts/siborg.create.human/data/modifiers/
