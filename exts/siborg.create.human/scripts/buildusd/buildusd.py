@@ -29,13 +29,12 @@ def make_human():
     # Add custom data to the prim by key, designating the prim is a human
     skel_root.GetPrim().SetCustomDataByKey("human", True)
 
-    # Load the base mesh from a file
+    # Get the extension path
     ext_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Load the base mesh from a file
     base_mesh_file = os.path.join(ext_path, "data", "3dobjs", "base.obj")
-    meshes = load_obj(base_mesh_file)
-    meshes = combine_joint_meshes(meshes)
-    for m in meshes:
-        create_geom(stage, rootPath.AppendChild(m.name), m)
+    load_basemesh(stage, rootPath, base_mesh_file)
 
     # Create the skeleton
     skeleton = build_skeleton(stage, skel_root, ext_path)
