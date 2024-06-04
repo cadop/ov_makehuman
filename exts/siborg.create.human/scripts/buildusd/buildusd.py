@@ -3,7 +3,7 @@
 import os
 
 from animation import build_blend_anim, build_scale_anim
-from mesh import MeshData, create_geom, load_obj
+from mesh import combine_joint_meshes, create_geom, load_obj
 from pxr import Sdf, Usd, UsdGeom, UsdSkel
 from skeleton import build_skeleton
 from targets import import_modifiers, mhtarget_to_blendshapes
@@ -74,33 +74,6 @@ def make_human():
     save_path = os.path.join(ext_path, "data", "human_base.usd")
     print(f"Saving to {save_path}")
     stage.Export(save_path)
-
-
-def combine_joint_meshes(meshes):
-    joints, non_joints = [], []
-    for m in meshes:
-        if m.name.startswith("joint"):
-            joints.append(m)
-        else:
-            non_joints.append(m)
-    meshes = non_joints
-    # Combine the joint meshes into a single mesh
-    vertices = joints[0].vertices
-    uvs = joints[0].uvs
-    normals = joints[0].normals
-    face_verts = []
-    vertex_idxs = []
-    uv_idxs = []
-    normal_idxs = []
-    for m in joints:
-        face_verts.extend(m.nface_verts)
-        vertex_idxs.extend(m.vert_indices)
-        uv_idxs.extend(m.uv_indices)
-        normal_idxs.extend(m.normal_indices)
-    # Create a new mesh
-    joint_mesh = MeshData("joints", vertices, uvs, normals, vertex_idxs, uv_idxs, normal_idxs, face_verts)
-    meshes.append(joint_mesh)
-    return meshes
 
 
 if __name__ == "__main__":
