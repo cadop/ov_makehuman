@@ -30,7 +30,7 @@ def make_human():
     skel_root.GetPrim().SetCustomDataByKey("human", True)
 
     # Get the extension path
-    ext_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ext_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     # Load the base mesh from a file
     base_mesh_file = os.path.join(ext_path, "data", "3dobjs", "base.obj")
@@ -46,7 +46,7 @@ def make_human():
 
     # Import the targets
     targets_path = os.path.join(ext_path, "data", "targets", "armslegs")
-    import_targets(stage, prim, ext_path, targets_path)
+    import_targets(stage, prim, targets_path)
 
     # Create and bind animation for blendshapes
     build_anim(stage, skeleton, ext_path, blendshapes=True)
