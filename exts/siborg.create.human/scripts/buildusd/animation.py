@@ -1,9 +1,10 @@
 import numpy as np
-from pxr import Usd, UsdSkel
+from pxr import Usd, UsdSkel, Tf
 
 
 def build_anim(stage: Usd.Stage, skeleton: UsdSkel.Skeleton, name: str = "target_anim", blendshapes: bool = False):
     # Create an Animation
+    name = Tf.MakeValidIdentifier(name)
     animation = UsdSkel.Animation.Define(stage, skeleton.GetPrim().GetPath().AppendChild(name))
 
     if blendshapes:
