@@ -5,6 +5,7 @@ import warnings
 from collections import defaultdict
 from pxr import UsdGeom, UsdSkel, Sdf, Tf
 from typing import List
+from macrotargets import MacroModifier, import_macrodata
 
 
 class TargetModifier:
@@ -63,6 +64,7 @@ def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
     groups = defaultdict(list)
     modifiers = []
+    import_macrodata(os.path.join(os.path.dirname(modifiers_path), "macrodata.json"))
     with open(modifiers_path, "r") as f:
         data = json.load(f)
         for group in data:
@@ -71,10 +73,7 @@ def import_modifiers(prim, modifiers_path):
                 if "target" in modifier_data:
                     modifier = TargetModifier(groupname, modifier_data)
                 elif "macrovar" in modifier_data:
-                    print("Macrovar modifiers not yet implemented")
-                    break
-                    # raise NotImplementedError("Macrovar modifiers not yet implemented")
-                    # modifier = MacroModifier(groupname, modifier_data)
+                    modifier = MacroModifier(groupname, modifier_data)
                 # Add the modifier to the group
                 groups[groupname].append(modifier)
                 # Add the modifier to the list of all modifiers (for tracking changes)
