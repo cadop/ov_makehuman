@@ -5,7 +5,9 @@ from pxr import Usd
 class MacroModifier:
     """A class holding the data and methods for a modifier that targets multiple blendshapes by modifying interdependent variables."""
 
-    def __init__(self, group: str, macrodata: dict, modifier_data: dict):
+    def __init__(self, group: str, modifier_data: dict):
+        if not macrodata:
+            raise ValueError("Macrodata must be loaded before creating a MacroModifier instance.")
         if "macrovar" not in modifier_data:
             print(f"No macrovar for modifier {self.full_name}. Is this a target modifier?")
             return
@@ -28,6 +30,15 @@ class MacroModifier:
         # Macrovars are always in the range [0,1]
         self.min_val = 0
         self.max_val = 1
+
+
+macrodata: dict = {}
+"""The macrodata dictionary containing all macrovars and their parts, for mapping from modifiers to specific targets"""
+
+
+def import_macrodata(filepath):
+    global macrodata
+    macrodata = load_json_data(filepath)
 
 
 # NOTE: The stuff below needs to run in real time, so really it should be a part of the extension or exposed
@@ -100,6 +111,3 @@ def load_json_data(filepath):
     with open(filepath, "r") as file:
         data = json.load(file)
     return data
-
-
-def import_macrotargets(stage: Usd.Stage, prim: Usd.Prim, targets_path: str):
