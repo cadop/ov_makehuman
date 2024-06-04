@@ -165,3 +165,10 @@ def combine_joint_meshes(meshes):
     joint_mesh = MeshData("joints", vertices, uvs, normals, vertex_idxs, uv_idxs, normal_idxs, face_verts)
     meshes.append(joint_mesh)
     return meshes
+
+
+def load_basemesh(stage, rootPath, base_mesh_file):
+    meshes = load_obj(base_mesh_file)
+    meshes = combine_joint_meshes(meshes)
+    for m in meshes:
+        create_geom(stage, rootPath.AppendChild(m.name), m)
