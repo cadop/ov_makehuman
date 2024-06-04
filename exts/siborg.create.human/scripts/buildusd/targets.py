@@ -189,3 +189,15 @@ def mhtarget_to_blendshapes(stage, prim, path: str) -> List[Sdf.Path]:
                 print(f"Blendshapes {mismatched} are bound but do not exist")
             # Set the updated blendshapes for this mesh.
             meshBinding.GetBlendShapesAttr().Set(existing_blendshapes)
+
+
+def import_targets(stage, prim, targets_dir: str):
+    # Traverse the MakeHuman targets directory
+    targets_dir = 
+    for dirpath, _, filenames in os.walk(targets_dir):
+        for filename in filenames:
+            # Skip non-target files
+            if not filename.endswith(".target"):
+                continue
+            print(f"Importing {filename}")
+            mhtarget_to_blendshapes(stage, prim, os.path.join(dirpath, filename))

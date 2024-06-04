@@ -6,7 +6,7 @@ from animation import build_blend_anim, build_scale_anim
 from mesh import combine_joint_meshes, create_geom, load_obj
 from pxr import Sdf, Usd, UsdGeom, UsdSkel
 from skeleton import build_skeleton
-from targets import import_modifiers, mhtarget_to_blendshapes
+from targets import import_modifiers, import_targets
 
 
 def make_human():
@@ -43,17 +43,11 @@ def make_human():
     prim = skel_root.GetPrim()
     # Import the modifiers
     modifiers_path = os.path.join(ext_path, "data", "modifiers", "modeling_modifiers.json")
-    # Traverse the MakeHuman targets directory
-    targets_dir = os.path.join(ext_path, "data", "targets", "armslegs")
-    for dirpath, _, filenames in os.walk(targets_dir):
-        for filename in filenames:
-            # Skip non-target files
-            if not filename.endswith(".target"):
-                continue
-            print(f"Importing {filename}")
-            mhtarget_to_blendshapes(stage, prim, os.path.join(dirpath, filename))
-
     import_modifiers(prim, modifiers_path)
+
+    # Import the targets
+    targets_path = os.path.join(ext_path, "data", "targets", "armslegs")
+    import_targets(stage, prim, ext_path, targets_path)
 
     # Create and bind animation for blendshapes
     build_blend_anim(stage, skeleton, ext_path)
