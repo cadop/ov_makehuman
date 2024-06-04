@@ -3,9 +3,9 @@
 import os
 
 from animation import build_blend_anim, build_scale_anim
-from mesh import combine_joint_meshes, create_geom, load_obj
+from meshes import load_basemesh
 from pxr import Sdf, Usd, UsdGeom, UsdSkel
-from skeleton import build_skeleton
+from skeletons import build_skeleton
 from targets import import_modifiers, import_targets
 
 
