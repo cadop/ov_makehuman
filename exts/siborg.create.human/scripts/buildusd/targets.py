@@ -193,7 +193,6 @@ def mhtarget_to_blendshapes(stage, prim, path: str) -> List[Sdf.Path]:
 
 def import_targets(stage, prim, targets_dir: str):
     # Traverse the MakeHuman targets directory
-    targets_dir = 
     for dirpath, _, filenames in os.walk(targets_dir):
         for filename in filenames:
             # Skip non-target files
