@@ -21,15 +21,23 @@ class MacroModifier:
             self.group = group
             self.targetsprefix = ""
 
-        # Get the macrodata based on the modifier macrovar
-        self.macrovar = modifier_data["macrovar"].lower()
-        macrovar_data = macrodata[self.macrovar]
-        self.label = macrovar_data["label"]
-        self.parts = macrovar_data["parts"]
-        self.center = calculate_center_of_range(self.parts)
         # Macrovars are always in the range [0,1]
         self.min_val = 0
         self.max_val = 1
+
+        self.isEthnicModifier = modifier_data.get("modifierType") == "EthnicModifier"
+        if self.isEthnicModifier:
+            self.label = modifier_data["macrovar"]
+            self.parts = None
+            self.center = None
+            return
+
+        # Get the macrodata based on the modifier macrovar
+        self.macrovar = modifier_data["macrovar"].lower()
+        macrovar_data = macrodata["macrotargets"][self.macrovar]
+        self.label = macrovar_data["label"]
+        self.parts = macrovar_data["parts"]
+        self.center = calculate_center_of_range(self.parts)
 
 
 macrodata: dict = {}
