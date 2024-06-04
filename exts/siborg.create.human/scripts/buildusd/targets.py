@@ -64,7 +64,7 @@ def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
     groups = defaultdict(list)
     modifiers = []
-    import_macrodata(os.path.join(os.path.dirname(modifiers_path), "macrodata.json"))
+    import_macrodata(os.path.join(os.path.dirname(modifiers_path), "macro.json"))
     with open(modifiers_path, "r") as f:
         data = json.load(f)
         for group in data:
