@@ -1,4 +1,37 @@
 import json
+from pxr import Usd
+
+
+class MacroModifier:
+    """A class holding the data and methods for a modifier that targets multiple blendshapes by modifying interdependent variables."""
+
+    def __init__(self, group: str, macrodata: dict, modifier_data: dict):
+        if "macrovar" not in modifier_data:
+            print(f"No macrovar for modifier {self.full_name}. Is this a target modifier?")
+            return
+
+        # If the group name is hyphenated, the first part is the group name and the second part is the prefix
+        # for targets affected by this macrovar
+        if "-" in group:
+            self.group = group.split("-")[0]
+            self.targetsprefix = group.split("-")[1]
+        else:
+            self.group = group
+            self.targetsprefix = ""
+
+        # Get the macrodata based on the modifier macrovar
+        self.macrovar = modifier_data["macrovar"].lower()
+        macrovar_data = macrodata[self.macrovar]
+        self.label = macrovar_data["label"]
+        self.parts = macrovar_data["parts"]
+        self.center = calculate_center_of_range(self.parts)
+        # Macrovars are always in the range [0,1]
+        self.min_val = 0
+        self.max_val = 1
+
+
+# NOTE: The stuff below needs to run in real time, so really it should be a part of the extension or exposed
+# as a part of an API. This is just a proof of concept for now.
 
 
 def calculate_center_of_range(parts):
@@ -67,3 +100,6 @@ def load_json_data(filepath):
     with open(filepath, "r") as file:
         data = json.load(file)
     return data
+
+
+def import_macrotargets(stage: Usd.Stage, prim: Usd.Prim, targets_path: str):
