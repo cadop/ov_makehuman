@@ -1,50 +1,53 @@
 import json
 from pxr import Usd
+from targets import Modifier
 
 
-class MacroModifier:
+class MacroModifier(Modifier):
     """A class holding the data and methods for a modifier that targets multiple blendshapes by modifying interdependent variables."""
 
     def __init__(self, group: str, modifier_data: dict):
+        super().__init__()
         if not macrodata:
             raise ValueError("Macrodata must be loaded before creating a MacroModifier instance.")
         if "macrovar" not in modifier_data:
-            print(f"No macrovar for modifier {self.full_name}. Is this a target modifier?")
+            print(f"No macrovar for modifier {str(modifier_data)}. Is this a target modifier?")
             return
 
         # If the group name is hyphenated, the first part is the group name and the second part is the prefix
         # for targets affected by this macrovar
         if "-" in group:
-            self.group = group.split("-")[0]
-            self.targetsprefix = group.split("-")[1]
+            self.data["group"] = group.split("-")[0]
+            self.data["targetsprefix"] = group.split("-")[1]
         else:
-            self.group = group
-            self.targetsprefix = ""
+            self.data["group"] = group
+            self.data["targetsprefix"] = ""
 
         # Macrovars are always in the range [0,1]
-        self.min_val = 0
-        self.max_val = 1
+        self.data["min_val"] = 0
+        self.data["max_val"] = 1
 
         self.isEthnicModifier = modifier_data.get("modifierType") == "EthnicModifier"
         if self.isEthnicModifier:
-            self.label = modifier_data["macrovar"]
-            self.parts = None
-            self.center = None
+            # TODO Uppercase the label
+            self.data["label"] = modifier_data["macrovar"]
+            self.data["parts"] = None
+            self.data["center"] = None
             return
 
         # Get the macrodata based on the modifier macrovar
-        self.macrovar = modifier_data["macrovar"].lower()
-        macrovar_data = macrodata["macrotargets"][self.macrovar]
-        self.label = macrovar_data["label"]
-        self.parts = macrovar_data["parts"]
-        self.center = calculate_center_of_range(self.parts)
+        self.data["macrovar"] = modifier_data["macrovar"].lower()
+        macrovar_data = macrodata["macrotargets"][self.data["macrovar"]]
+        self.data["label"] = macrovar_data["label"]
+        self.data["parts"] = macrovar_data["parts"]
+        self.data["center"] = calculate_center_of_range(self.data["parts"])
 
 
 macrodata: dict = {}
 """The macrodata dictionary containing all macrovars and their parts, for mapping from modifiers to specific targets"""
 
 
-def import_macrodata(filepath):
+def import_macrodata_mappings(filepath):
     global macrodata
     macrodata = load_json_data(filepath)
 

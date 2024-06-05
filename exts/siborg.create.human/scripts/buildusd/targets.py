@@ -5,10 +5,17 @@ import warnings
 from collections import defaultdict
 from pxr import UsdGeom, UsdSkel, Sdf, Tf
 from typing import List
-from macrotargets import MacroModifier, import_macrodata
+from macrotargets import MacroModifier, import_macrodata_mappings
 
 
-class TargetModifier:
+class Modifier:
+    """Generic class for a modifier. Subclasses are TargetModifier and MacroModifier. Should not be directly instantiated."""
+
+    def __init__(self, group: str):
+        self.data = {}
+
+
+class TargetModifier(Modifier):
     """A class holding the data and methods for a modifier that targets specific blendshapes.
     blend: str
         The base name of the blendshape(s) to modify
@@ -27,7 +34,9 @@ class TargetModifier:
     """
 
     def __init__(self, group, modifier_data: dict):
+        super.__init__()
         if "target" in modifier_data:
+            self.data["group"] = group
             tlabel = modifier_data["target"].split("-")
             if "|" in tlabel[len(tlabel) - 1]:
                 tlabel = tlabel[:-1]
@@ -35,36 +44,34 @@ class TargetModifier:
                 label = tlabel[1:]
             else:
                 label = tlabel
-            self.label = " ".join([word.capitalize() for word in label])
+            self.data["label"] = " ".join([word.capitalize() for word in label])
             # Guess a suitable image path from modifier name
             tlabel = modifier_data["target"].replace("|", "-").split("-")
-            # image = modifier_image(("%s.png" % "-".join(tlabel)).lower())
-            self.image = None
         else:
-            print(f"No target for modifier {self.full_name}. Is this a macrovar modifier?")
+            print(f"No target for modifier {str(modifier_data)}. Is this a macrovar modifier?")
             return
         # Blendshapes are named based on the modifier name
-        self.blend = Tf.MakeValidIdentifier(modifier_data["target"])
-        self.min_blend = None
-        self.max_blend = None
+        self.data["blend"] = Tf.MakeValidIdentifier(modifier_data["target"])
+        self.data["min_blend"] = None
+        self.data["max_blend"] = None
         if "min" in modifier_data and "max" in modifier_data:
             # Some modifiers adress two blendshapes in either direction
-            self.min_blend = Tf.MakeValidIdentifier(f"{self.blend}_{modifier_data['min']}")
-            self.max_blend = Tf.MakeValidIdentifier(f"{self.blend}_{modifier_data['max']}")
-            self.blend = None
-            self.min_val = -1
+            self.data["min_blend"] = Tf.MakeValidIdentifier(f"{self.data['blend']}_{modifier_data['min']}")
+            self.data["max_blend"] = Tf.MakeValidIdentifier(f"{self.data['blend']}_{modifier_data['max']}")
+            self.data["blend"] = None
+            self.data["min_val"] = -1
         else:
             # Some modifiers only adress one blendshape
-            self.min_val = 0
+            self.data["min_val"] = 0
         # Modifiers either in the range [0,1] or [-1,1]
-        self.max_val = 1
+        self.data["max_val"] = 1
 
 
 def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
     groups = defaultdict(list)
     modifiers = []
-    import_macrodata(os.path.join(os.path.dirname(modifiers_path), "macro.json"))
+    import_macrodata_mappings(os.path.join(os.path.dirname(modifiers_path), "macro.json"))
     with open(modifiers_path, "r") as f:
         data = json.load(f)
         for group in data:
@@ -81,17 +88,10 @@ def import_modifiers(prim, modifiers_path):
     # Write the modifiers to the prim
     groups_custom_data = {}
     for group, modifier_list in groups.items():
+        modifier: Modifier
         for modifier in modifier_list:
-            modifier_custom_data = {
-                # "label": modifier.label,
-                "min_val": modifier.min_val,
-                "max_val": modifier.max_val,
-                "blend": modifier.blend,
-                "min_blend": modifier.min_blend,
-                "max_blend": modifier.max_blend,
-            }
-            # Remove None values
-            modifier_custom_data = {k: v for k, v in modifier_custom_data.items() if v is not None}
+            # Remove None values from modifier data
+            modifier_custom_data = {k: v for k, v in modifier.data.items() if v is not None}
             groups_custom_data[group] = modifier_custom_data
             prim.SetCustomDataByKey("modifiers", groups_custom_data)
 
