@@ -6,7 +6,8 @@ from animation import build_anim
 from meshes import load_basemesh
 from pxr import Sdf, Usd, UsdGeom, UsdSkel
 from skeletons import build_skeleton
-from targets import import_modifiers, import_targets
+from targets import import_targets
+from modifiers import import_modifiers
 
 
 def make_human():
