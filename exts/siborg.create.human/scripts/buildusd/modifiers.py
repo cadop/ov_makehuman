@@ -105,8 +105,7 @@ class MacroModifier(Modifier):
 
 def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
-    groups = defaultdict(list)
-    modifiers = []
+    groups = defaultdict(dict)
     import_macrodata_mappings(os.path.join(os.path.dirname(modifiers_path), "macro.json"))
     with open(modifiers_path, "r") as f:
         data = json.load(f)
@@ -118,18 +117,10 @@ def import_modifiers(prim, modifiers_path):
                 elif "macrovar" in modifier_data:
                     modifier = MacroModifier(groupname, modifier_data)
                 # Add the modifier to the group
-                groups[groupname].append(modifier)
-                # Add the modifier to the list of all modifiers (for tracking changes)
-                modifiers.append(modifier)
-    # Write the modifiers to the prim
-    groups_custom_data = {}
-    for group, modifier_list in groups.items():
-        modifier: Modifier
-        for modifier in modifier_list:
-            # Remove None values from modifier data
-            modifier_custom_data = {k: v for k, v in modifier.data.items() if v is not None}
-            groups_custom_data[group] = modifier_custom_data
-            prim.SetCustomDataByKey("modifiers", groups_custom_data)
+                groups[groupname][modifier.data["label"]] = modifier.data
+
+    custom_data = json.dumps(groups, indent=4)
+    prim.SetCustomDataByKey("modifiers", custom_data)
 
 
 macrodata: dict = {}
