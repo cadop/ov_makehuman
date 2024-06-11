@@ -157,12 +157,9 @@ def separate_blendshape(stage, prim, blendshape, skeltarget_path):
     # Subtract the skeletal deformation from the blendshape offsets at any 
     corrected_offsets = blendshape_offsets - skeletal_deformation_offset[blendshape_indices]
 
-    # Create a new blendshape with the corrected vertices
-    # Create the new blendshape
-    targets_prim = stage.DefinePrim(prim.GetPath().AppendChild("skelfree_targets"))
-    new_blendshape = UsdSkel.BlendShape.Define(stage, targets_prim.GetPath().AppendChild(blendshape.GetPrim().GetName()))
-    new_blendshape.CreateOffsetsAttr().Set(Vt.Vec3fArray().FromNumpy(corrected_offsets))
-    new_blendshape.CreatePointIndicesAttr().Set(Vt.IntArray().FromNumpy(blendshape_indices))
+    # Overwrite the blendshape with the corrected offsets
+    blendshape.GetOffsetsAttr().Set(Vt.Vec3fArray().FromNumpy(corrected_offsets))
+    blendshape.GetPointIndicesAttr().Set(Vt.IntArray().FromNumpy(blendshape_indices))
 
     # Add custom attributes to the blendshape to store the skeletal transformations
     return new_blendshape
