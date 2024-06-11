@@ -340,7 +340,7 @@ def edit_blendshapes(prim: Usd.Prim, blendshapes: Dict[str, float], time = 0):
     skeleton_path = next(path for path in skeleton_paths if path.elementString != "resize_skeleton")
     skeleton = UsdSkel.Skeleton.Get(stage, skeleton_path)
     animation_paths = UsdSkel.BindingAPI(skeleton).GetAnimationSourceRel().GetTargets()
-    animation_path = next(path for path in animation_paths if path.elementString == "blendshape_animation")
+    animation_path = next(path for path in animation_paths if path.elementString == "target_anim")
     animation = UsdSkel.Animation.Get(stage, animation_path)
     apply_weights(animation, blendshapes, time)
     helpers = prim.GetChild("joints")
