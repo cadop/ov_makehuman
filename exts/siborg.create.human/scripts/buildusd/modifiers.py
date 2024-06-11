@@ -118,9 +118,18 @@ def import_modifiers(prim, modifiers_path):
                     modifier = MacroModifier(groupname, modifier_data)
                 # Add the modifier to the group
                 groups[groupname][modifier.data["label"]] = modifier.data
+    write_custom_dict(prim, "modifiers", groups)
 
-    custom_data = json.dumps(groups, indent=4)
-    prim.SetCustomDataByKey("modifiers", custom_data)
+
+def write_custom_dict(prim, key, value):
+    """Write a dictionary with subdictionaries to the custom data of a prim.
+    Per USD docs: "The keyPath is a ':'-separated path identifying a value in subdictionaries."
+    https://openusd.org/release/api/class_usd_object.html#abdcc93cd6a4dd8ad2bbe2134316ad836"""
+    for k, v in value.items():
+        if isinstance(v, dict):
+            write_custom_dict(prim, f"{key}:{k}", v)
+        else:
+            prim.SetCustomDataByKey(f"{key}:{k}", v)
 
 
 macrodata: dict = {}
