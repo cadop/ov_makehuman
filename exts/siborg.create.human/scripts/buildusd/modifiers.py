@@ -99,8 +99,9 @@ class MacroModifier(Modifier):
         self.data["macrovar"] = modifier_data["macrovar"].lower()
         macrovar_data = macrodata["macrotargets"][self.data["macrovar"]]
         self.data["label"] = macrovar_data["label"]
-        self.data["parts"] = macrovar_data["parts"]
-        self.data["center"] = calculate_center_of_range(self.data["parts"])
+        for idx, part in enumerate(macrovar_data["parts"]):
+            self.data[f"part{idx}"] = part
+        self.data["center"] = calculate_center_of_range(macrovar_data["parts"])
 
 
 def import_modifiers(prim, modifiers_path):
