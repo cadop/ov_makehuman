@@ -602,5 +602,18 @@ def read_modifiers(human: Usd.Prim) -> dict:
     # 
     # Macrotarget modifiers won't have these keys but have a "macrovar" key instead, so we can ignore them
     for modifier, data in modifiers.items():
+        if "macrovar" in data:
+            continue
+        # Modifier value is the weight of the blendshape "blend" if a single blendshape is specified, or the weight
+        # of whichever blendshape "min_blend" or "max_blend" is not the same as the center of the weight range
+        if data.get("blend"):
+            blendshape = data["blend"]
+        else:
+            center = (data.get("min_blend") + data.get("max_blend")) / 2
+            blendshape = data["min_blend"] if center == weights[blendshapes == data["min_blend"]] else data["max_blend"]
+        # Get the weight of the blendshape
+        weight = weights[blendshapes == blendshape]
+        # Store the modifier value
+        modifiers[modifier]["weight"] = weight
 
     return modifiers
