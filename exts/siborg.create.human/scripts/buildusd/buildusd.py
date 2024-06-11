@@ -52,18 +52,6 @@ def make_human():
     # Create and bind animation for blendshapes
     build_anim(stage, skeleton, blendshapes=True)
 
-    # Create a resizing skeleton for scaling. When blendshapes are applied, we will update the resizing skeleton
-    # joints in the rest pose, and then transfer the bone lengths to the original skeleton.
-    resize_skel = build_skeleton(stage, skel_root, ext_path, "resize_skeleton")
-    # Move the original skeleton to the resizing skeleton's rest pose
-    skelcache = UsdSkel.Cache()
-    resizeSkelQuery = skelcache.GetSkelQuery(resize_skel)
-    resize_skel_restxforms = resizeSkelQuery.ComputeJointLocalTransforms(0)
-    skeleton.GetRestTransformsAttr().Set(resize_skel_restxforms)
-
-    # Create and bind animation for scaling
-    build_anim(stage, resize_skel, "resize_anim")
-
     # Save the stage to a file
     save_path = os.path.join(ext_path, "data", "human_base.usd")
     print(f"Saving to {save_path}")

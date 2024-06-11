@@ -343,23 +343,6 @@ def edit_blendshapes(prim: Usd.Prim, blendshapes: Dict[str, float], time = 0):
     animation_path = next(path for path in animation_paths if path.elementString == "target_anim")
     animation = UsdSkel.Animation.Get(stage, animation_path)
     apply_weights(animation, blendshapes, time)
-    helpers = prim.GetChild("joints")
-    points = compute_new_points(helpers, animation, time)
-    # Get the skeleton for resizing
-    resize_skelpath = next(path for path in skeleton_paths if path.elementString == "resize_skeleton")
-    resize_skel = UsdSkel.Skeleton.Get(stage, resize_skelpath)
-    scale_animation_path = UsdSkel.BindingAPI(resize_skel).GetAnimationSourceRel().GetTargets()[0]
-    scale_animation = UsdSkel.Animation.Get(stage, scale_animation_path)
-
-    source_xforms = joints_from_points(resize_skel, points, time)
-    scale_animation.SetTransforms(source_xforms, time)
-    new_xforms = compose_xforms(source_xforms, skeleton, time)
-    animation.SetTransforms(new_xforms, time)
-
-    # Set joints property on both animations
-    # skel_cache = UsdSkel.Cache()
-    # add_joints_attr(skel_cache, skeleton, animation)
-    # add_joints_attr(skel_cache, resize_skel, scale_animation)
 
 
 def add_joints_attr(skel_cache, skel, anim):
