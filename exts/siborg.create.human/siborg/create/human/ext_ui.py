@@ -209,11 +209,13 @@ class ModifierUI(ui.Frame):
 
         # modifiers = humandata.get("Modifiers")
 
-        # # Set any changed values in the models
-        # for SliderEntryPanelModel in self.models:
-        #     for param in SliderEntryPanelModel.params:
-        #         if param.full_name in modifiers:
-        #             param.value.set_value(modifiers[param.full_name])
+        modifiers = mhusd.read_modifiers(human_prim)
+
+        # Set any changed values in the models
+        for SliderEntryPanelModel in self.models:
+            for param in SliderEntryPanelModel.params:
+                if param.full_name in modifiers:
+                    param.value.set_value(modifiers[param.full_name])
 
     def update_models(self):
         """Update all models"""
