@@ -89,8 +89,8 @@ class MacroModifier(Modifier):
 
         self.isEthnicModifier = modifier_data.get("modifierType") == "EthnicModifier"
         if self.isEthnicModifier:
-            # TODO Uppercase the label
-            self.data["label"] = modifier_data["macrovar"]
+            self.data["label"] = modifier_data["macrovar"].capitalize()
+            self.data["macrovar"] = modifier_data["macrovar"].lower()
             self.data["parts"] = None
             self.data["center"] = None
             return
