@@ -583,7 +583,8 @@ def read_modifiers(human: Usd.Prim) -> dict:
     modifiers = customdata.get("modifiers")
 
     # Get the animation
-    skeleton = UsdSkel.BindingAPI(human).GetSkeletonRel().GetTargets()[0]
+    skeleton_path = UsdSkel.BindingAPI(human).GetSkeletonRel().GetTargets()[0]
+    skeleton = UsdSkel.Skeleton.Get(human.GetStage(), skeleton_path)
     animation = UsdSkel.BindingAPI(skeleton).GetAnimationSourceRel().GetTargets()[0]
 
     # Find any blendshapes with non-zero weights
