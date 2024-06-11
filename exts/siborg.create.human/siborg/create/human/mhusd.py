@@ -609,7 +609,7 @@ def read_modifiers(human: Usd.Prim) -> dict:
         if data.get("blend"):
             blendshape = data["blend"]
         else:
-            center = (data.get("min_blend") + data.get("max_blend")) / 2
+            center = (data.get("min_val") + data.get("max_val")) / 2
             blendshape = data["min_blend"] if center == weights[blendshapes == data["min_blend"]] else data["max_blend"]
         # Get the weight of the blendshape
         weight = weights[blendshapes == blendshape]
