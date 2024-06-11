@@ -1,6 +1,5 @@
 # Build the recalculated blendshapes from targets to exclude transformations due to skeletal deformation
 # Write skeletal transformations to a separate .skeltargets file
-# This script 
 
 import os
 from pxr import Usd, UsdSkel, UsdGeom, Gf, Vt
@@ -9,8 +8,8 @@ import json
 
 
 def blendshape_to_skeltarget(prim, blendshape, output_path):
-    '''Creates a .skeltarget file for a given blendshape. The file contains the transformations applied to the skeleton
-    joints when referencing the joint helper geometry after the blendshape has been applied.'''
+    """Creates a .skeltarget file for a given blendshape. The file contains the transformations applied to the skeleton
+    joints when referencing the joint helper geometry after the blendshape has been applied."""
 
     # Apply the blendshape to the mesh at 100% weight
     points = compute_blendshape_points(prim, blendshape, 1.0)
@@ -45,13 +44,9 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
         rotation = {"axis": list(rotation.GetAxis()), "angle": rotation.GetAngle()}
 
         scale = list(Gf.Vec3d(*(v.GetLength() for v in xform.ExtractRotationMatrix())))
-        data["skeleton"][joint] = {
-            "translation": translation,
-            "rotation": rotation,
-            "scale": scale
-        }
+        data["skeleton"][joint] = {"translation": translation, "rotation": rotation, "scale": scale}
 
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(data, f, indent=4)
 
     # Skeltargets are effectively just skeletal animations, so we can also save the skeletal transformations to a .usda
@@ -65,8 +60,8 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
     stage.GetRootLayer().Export(f"{output_path}.usda")
 
 
-def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array: 
-    '''Applies the skeletal transformations defined in a .skeltarget file to the skeleton joints. There should be a mesh
+def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
+    """Applies the skeletal transformations defined in a .skeltarget file to the skeleton joints. There should be a mesh
     in the scene that is already bound and skinned to the skeleton.
 
     Parameters:
@@ -81,7 +76,7 @@ def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
     np.array
         The new vertices of the mesh after the skeletal transformations have been applied
 
-    '''
+    """
 
     # Get the skeleton through the binding API. We assume the first target is the skeleton we want to use
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
@@ -92,7 +87,7 @@ def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
     points = Vt.Vec3fArray(current_points)
 
     # Load the .skeltarget file
-    with open(skeltarget_path, 'r') as f:
+    with open(skeltarget_path, "r") as f:
         skeltarget = json.load(f)
     # Apply the skeletal transformations to the skeleton joints
     xforms = np.empty(16)
@@ -100,7 +95,9 @@ def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
         translation = Gf.Vec3d(data["translation"])
         rotation = Gf.Rotation(Gf.Vec3d(data["rotation"]["axis"]), data["rotation"]["angle"])
         scale = Gf.Vec3d(data["scale"])
-        xform_mat = Gf.Matrix4d().SetTranslate(translation) * Gf.Matrix4d().SetRotate(rotation) * Gf.Matrix4d().SetScale(scale)
+        xform_mat = (
+            Gf.Matrix4d().SetTranslate(translation) * Gf.Matrix4d().SetRotate(rotation) * Gf.Matrix4d().SetScale(scale)
+        )
         np.append(xforms, xform_mat)
     xforms = Vt.Matrix4dArray().FromNumpy(xforms)
 
@@ -125,7 +122,9 @@ def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
     return np.array(points)
 
 
-def compose_xforms(source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Skeleton, time: int = 0) -> Vt.Matrix4dArray:
+def compose_xforms(
+    source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Skeleton, time: int = 0
+) -> Vt.Matrix4dArray:
     source_xforms = np.array(source_xforms)
     skel_cache = UsdSkel.Cache()
     skel_query = skel_cache.GetSkelQuery(target_skeleton)
@@ -136,10 +135,11 @@ def compose_xforms(source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Ske
     new_xforms = np.matmul(new_xforms, xforms)
     return Vt.Matrix4dArray().FromNumpy(new_xforms)
 
+
 def separate_blendshape(stage, prim, blendshape, skeltarget_path):
-    '''Subtracts the mesh deformation due to skeletal transformations from deformation caused by the blendshape  to
+    """Subtracts the mesh deformation due to skeletal transformations from deformation caused by the blendshape  to
     create a new blendshape without the corresponding skeletal transformation deformation. The resulting blendshape is
-    added to the prim.'''
+    added to the prim."""
     # Get the mesh
     body = prim.GetChild("body")
     # Get the mesh points before any transformation is applied
@@ -154,26 +154,26 @@ def separate_blendshape(stage, prim, blendshape, skeltarget_path):
     blendshape_offsets = np.array(blendshape.GetOffsetsAttr().Get())
     blendshape_indices = np.array(blendshape.GetPointIndicesAttr().Get())
 
-    # Subtract the skeletal deformation from the blendshape offsets at any 
+    # Subtract the skeletal deformation from the blendshape offsets at any
     corrected_offsets = blendshape_offsets - skeletal_deformation_offset[blendshape_indices]
 
     # Overwrite the blendshape with the corrected offsets
     blendshape.GetOffsetsAttr().Set(Vt.Vec3fArray().FromNumpy(corrected_offsets))
     blendshape.GetPointIndicesAttr().Set(Vt.IntArray().FromNumpy(blendshape_indices))
 
-    # Add custom attributes to the blendshape to store the skeletal transformations
-    return new_blendshape
+    # TODO Add custom attributes to the blendshape to store the skeletal transformations
+    return blendshape
 
 
 def bind_target(prim, blendshape):
-    '''Binds the new blendshape to the mesh.
+    """Binds the new blendshape to the mesh.
 
     Parameters:
     ------------
     prim: Usd.Prim
         The skelroot containing and mesh
     blendshape: BlendShape
-        The blendshape to be bound to the mesh (should probably be inside the skelroot already)'''
+        The blendshape to be bound to the mesh (should probably be inside the skelroot already)"""
     # Get the mesh
     body = prim.GetChild("body")
     meshBinding = UsdSkel.BindingAPI.Apply(body.GetPrim())
@@ -181,7 +181,7 @@ def bind_target(prim, blendshape):
 
 
 def add_blendshape_to_animation(prim, blendshape):
-    '''Adds the blendshape to the animation of the first mesh on the prim.'''
+    """Adds the blendshape to the animation of the first mesh on the prim."""
     # Get the first skeleton bound to the prim
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
     skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
@@ -194,8 +194,9 @@ def add_blendshape_to_animation(prim, blendshape):
     np.append(blendshapes, blendshape.GetPath())
     anim.GetBlendShapesAttr().Set(blendshapes)
 
+
 def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
-    '''Compute the new points of a mesh after a blendshape has been applied.'''
+    """Compute the new points of a mesh after a blendshape has been applied."""
     body = prim.GetChild("body")
     mesh_binding = UsdSkel.BindingAPI(body)
     blend_query = UsdSkel.BlendShapeQuery(mesh_binding)
@@ -214,12 +215,9 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
     current_points = body.GetAttribute("points").Get()
     points = np.array(current_points)
     points = Vt.Vec3fArray().FromNumpy(np.copy(points))
-    success = blend_query.ComputeDeformedPoints(subShapeWeights,
-                                                blendShapeIndices,
-                                                subShapeIndices,
-                                                blendShapePointIndices,
-                                                subShapePointOffset,
-                                                points)
+    success = blend_query.ComputeDeformedPoints(
+        subShapeWeights, blendShapeIndices, subShapeIndices, blendShapePointIndices, subShapePointOffset, points
+    )
     if success:
         # Compare old points to new points
         old_points = np.array(current_points)
@@ -234,7 +232,7 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
 
 
 def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, time: int):
-    """Compute the joint transforms for a skeleton from a set of points. Requires that the skeleton has customdata 
+    """Compute the joint transforms for a skeleton from a set of points. Requires that the skeleton has customdata
     with a mapping from each bone to its set of vertices. Transforms are returned in local space."""
     # Get mapping from each bone to its set of vertices
     bone_vertices_idxs = resize_skel.GetPrim().GetCustomData()
@@ -269,6 +267,7 @@ def compute_transform(head_vertices):
 
     return Gf.Matrix4d(transform.T)
 
+
 if __name__ == "__main__":
     ext_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_path = os.path.join(ext_path, "data")
@@ -280,7 +279,7 @@ if __name__ == "__main__":
     blendshape_name = "lowerlegs_height_incr"
     blendshape_path = prim_path.AppendChild("targets").AppendChild("armslegs").AppendChild(blendshape_name)
     blendshape = UsdSkel.BlendShape.Get(stage, blendshape_path)
-    
+
     # Store the skeletal transformations in a .skeltarget file
     skeltarget_path = os.path.join(data_path, "lowerlegs_height_incr.skeltarget")
     blendshape_to_skeltarget(prim, blendshape_name, skeltarget_path)
@@ -291,5 +290,5 @@ if __name__ == "__main__":
     add_blendshape_to_animation(prim, skelfree_blendshape)
 
     # Save the new stage
-    stage.GetRootLayer().Export(os.path.join(data_path, "human_base_skelfree.usd"))
+    stage.GetRootLayer().Save()
     print("Done")
