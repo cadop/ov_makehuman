@@ -8,45 +8,47 @@ from .widgets import SliderGroup
 
 
 class ModifierUI(ui.Frame):
-    """UI Widget for displaying and modifying human parameters
-
-    Attributes
-    ----------
-    model : ParamPanelModel
-        Stores data for the panel
-    toggle : ui.SimpleBoolModel
-        Model to track whether changes should be instant
-    models : list of SliderEntryPanelModel
-        Models for each group of parameter sliders
-    """
+    """UI Widget for displaying and modifying human parameters dynamically based on custom data on the human prim."""
 
     def __init__(self, **kwargs):
-        """Constructs an instance of ParamPanel. Panel contains a scrollable list of collapseable groups. These include
-        a group of macros (which affect multiple modifiers simultaneously), as well as groups of modifiers for
-        different body parts. Each modifier can be adjusted using a slider or doubleclicking to enter values directly.
-        Values are restricted based on the limits of a particular modifier.
-        """
-
         # Subclassing ui.Frame allows us to use styling on the whole widget
         super().__init__(**kwargs)
-        # If no instant update function is passed, use a dummy function and do nothing
-        self.groups, self.mods = self._init_groups_and_mods()
-        self.group_widgets = []
+        self.group_widgets: Dict[str, SliderGroup] = []
+        self.modifiers: Dict[str, dict] = {}
         self.set_build_fn(self._build_widget)
+        self.macrovars: Dict[str, float] = {}
         self.human_prim = None
-        self.macrovars = []
-
-    def _init_groups_and_mods(self):
-        """Initialize the groups and modifiers"""
-        return modifiers.parse_modifiers()
 
     def _build_widget(self):
+        """Build the widget from scratch every time a human is selected"""
+        self.group_widgets = {}
+        
+        # Arrange modifiers into groups
+        groups : Dict[str, List[Modifier]] = {}
+        for name, data in self.modifiers.items():
+            group = data["group"]
+            if group not in groups:
+                groups[group] = []
+            if "target" in data:
+                modifier = TargetModifier(group, data)
+            elif "macrovar" in data:
+                modifier = MacroModifier(group, data)
+            groups[group].append(modifier)
+
         with self:
             with ui.ScrollingFrame():
                 with ui.VStack(spacing=10):
-                    for g, m in self.groups.items():
-                        self.group_widgets.append(SliderGroup(g, m))
-        for m in self.mods:
+                    for group, modifiers in groups.items():
+                        self.group_widgets[group] = SliderGroup(group, modifiers)
+
+        # Set the values of the sliders to the values of the modifiers
+        for sliderGroup in self.group_widgets.items():
+            for entry in sliderGroup.slider_entries:
+                if entry.label in self.modifiers:
+                    v = self.modifiers[entry.label]["weight"]
+                    entry.model.set_value(v)
+
+        for m in self.modifiers:
             callback = self.create_callback(m)
             m.value_model.add_value_changed_fn(callback)
 
@@ -66,11 +68,6 @@ class ModifierUI(ui.Frame):
 
         return callback
 
-    def reset(self):
-        """Reset every SliderEntryPanel to set UI values to defaults"""
-        for model in self.models:
-            model.reset()
-
     def load_values(self, human_prim: Usd.Prim):
         """Load values from the human prim into the UI. Specifically, this function
         loads the values of the modifiers from the prim and updates any which
@@ -85,31 +82,15 @@ class ModifierUI(ui.Frame):
         # Make the prim exists
         if not human_prim.IsValid():
             self.human_prim = None
-            self.macrovars = []
+            self.macrovars = {}
+            # Destroy the modifier models
+            for m in self.group_widgets.values():
+                m.destroy()
             return
         self.human_prim = human_prim
         self.macrovars = mhusd.read_macrovars(human_prim)
-
-        # # Reset the UI to defaults
-        # self.reset()
-
-        # # Get the data from the prim
-        # humandata = human_prim.GetCustomData()
-
-        # modifiers = humandata.get("Modifiers")
-
-        modifiers = mhusd.read_modifiers(human_prim)
-
-        # Set any changed values in the models
-        for SliderGroup in self.group_widgets:
-            for param in SliderGroup.params:
-                if param.full_name in modifiers:
-                    param.value.set_value(modifiers[param.full_name])
-
-    def update_models(self):
-        """Update all models"""
-        for model in self.models:
-            model.apply_changes()
+        self.modifiers = mhusd.read_modifiers(human_prim)
+        self._build_widget()
 
     def destroy(self):
         """Destroys the ParamPanel instance as well as the models attached to each group of parameters"""
