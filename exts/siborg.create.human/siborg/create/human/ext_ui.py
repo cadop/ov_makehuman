@@ -1,18 +1,11 @@
 import omni.ui as ui
-import omni.kit.commands
-import json
-from typing import List, TypeVar, Union, Callable
-from dataclasses import dataclass, field
-from . import styles
-from pxr import Usd, Tf, UsdSkel
-import os
-import inspect
+from typing import List, Dict
+from pxr import Usd, Tf
 from siborg.create.human.shared import data_path
-from collections import defaultdict
-from . import modifiers
-from .modifiers import Modifier
+from .modifiers import Modifier, MacroModifier, TargetModifier
 from . import mhusd
 from .widgets import SliderGroup
+
 
 class ModifierUI(ui.Frame):
     """UI Widget for displaying and modifying human parameters
