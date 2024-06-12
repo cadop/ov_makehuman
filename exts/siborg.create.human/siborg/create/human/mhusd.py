@@ -592,28 +592,32 @@ def read_modifiers(human: Usd.Prim) -> dict:
     blendshapes = np.array(animation.GetBlendShapesAttr().Get(0))
     weights = np.array(animation.GetBlendShapeWeightsAttr().Get(0))
     blendshapes = blendshapes[weights > 0]
+    weights = weights[weights > 0]
     # Find the modifiers that correspond to these blendshapes. Modifiers customdata is a hierarchical dictionary and
     # the blendshape names are stored in the "blend," "max_blend," or "minblend" key in the following structure:
-    # group name:
     #     modifier name:
     #         blend: blendshape name XOR
     #         max_blend: blendshape name AND
     #         min_blend: blendshape name
-    # 
-    # Macrotarget modifiers won't have these keys but have a "macrovar" key instead, so we can ignore them
-    for modifier, data in modifiers.items():
-        if "macrovar" in data:
-            continue
+    for blendshape in blendshapes:
         # Modifier value is the weight of the blendshape "blend" if a single blendshape is specified, or the weight
         # of whichever blendshape "min_blend" or "max_blend" is not the same as the center of the weight range
-        if data.get("blend"):
-            blendshape = data["blend"]
-        else:
-            center = (data.get("min_val") + data.get("max_val")) / 2
-            blendshape = data["min_blend"] if center == weights[blendshapes == data["min_blend"]] else data["max_blend"]
-        # Get the weight of the blendshape
-        weight = weights[blendshapes == blendshape]
-        # Store the modifier value
+        # specified by "min_val" and "max_val"
+        
+        # Get the modifier which has the blendshape in its "blend," "max_blend," or "min_blend" key
+        modifier = next(modifier for modifier, data in modifiers.items() if blendshape in data.values())
+        index = np.where(blendshapes == blendshape)[0][0]
+        weight = weights[index]
         modifiers[modifier]["weight"] = weight
+        # if data.get("blend"):
+        #     blendshape = data["blend"]
+        # else:
+        #     center = (data.get("min_val") + data.get("max_val")) / 2
+        #     blendshape = data["min_blend"] if center == weights[blendshapes == data["min_blend"]] else data["max_blend"]
+        # # Get the weight of the blendshape
+        # weight = weights[blendshapes == blendshape][0]
+        # # Store the modifier value
+        # modifiers[modifier]["weight"] = weight
 
+    # Return all the modifiers so we can use them to build the UI
     return modifiers
