@@ -13,8 +13,8 @@ from . import modifiers
 from .modifiers import Modifier
 from . import mhusd
 
-class SliderEntry:
 
+class SliderEntry:
     def __init__(
         self,
         label: str,
@@ -64,7 +64,7 @@ class SliderEntry:
             if self.image:
                 ui.Image(self.image, height=75, style={"border_radius": 5})
             # Stack the label and slider on top of each other
-            with ui.VStack(spacing = 5):
+            with ui.VStack(spacing=5):
                 ui.Label(
                     self.label,
                     height=15,
@@ -79,6 +79,7 @@ class SliderEntry:
                     self.drag.min = self.min
                 if self.max is not None:
                     self.drag.max = self.max
+
 
 class SliderGroup:
     """A UI widget providing a labeled group of slider entries
@@ -99,7 +100,7 @@ class SliderGroup:
     def _build_widget(self):
         """Construct the UI elements"""
         with ui.CollapsableFrame(self.label, style=styles.panel_style, collapsed=True, height=0):
-            with ui.VStack(name="contents", spacing = 8):
+            with ui.VStack(name="contents", spacing=8):
                 # Create a slider entry for each parameter
                 for m in self.modifiers:
                     SliderEntry(
@@ -117,6 +118,7 @@ class SliderGroup:
         the SliderEntryPanel's SliderEntryPanelModel instance.
         """
         self.params = None
+
 
 class ModifierUI(ui.Frame):
     """UI Widget for displaying and modifying human parameters
@@ -150,7 +152,7 @@ class ModifierUI(ui.Frame):
     def _init_groups_and_mods(self):
         """Initialize the groups and modifiers"""
         return modifiers.parse_modifiers()
-        
+
     def _build_widget(self):
         with self:
             with ui.ScrollingFrame():
@@ -163,10 +165,11 @@ class ModifierUI(ui.Frame):
 
     def create_callback(self, m: Modifier):
         """Callback for when a modifier value is changed.
-        
+
         Parameters
         m : Modifier
             Modifier whose value was changed. Used to determine which blendshape(s) to edit"""
+
         def callback(v):
             # If the modifier has a macrovar, we need to edit the macrovar
             if m.macrovar:
@@ -177,8 +180,7 @@ class ModifierUI(ui.Frame):
         return callback
 
     def reset(self):
-        """Reset every SliderEntryPanel to set UI values to defaults
-        """
+        """Reset every SliderEntryPanel to set UI values to defaults"""
         for model in self.models:
             model.reset()
 
@@ -200,7 +202,7 @@ class ModifierUI(ui.Frame):
             return
         self.human_prim = human_prim
         self.macrovars = mhusd.read_macrovars(human_prim)
-        
+
         # # Reset the UI to defaults
         # self.reset()
 
@@ -212,8 +214,8 @@ class ModifierUI(ui.Frame):
         modifiers = mhusd.read_modifiers(human_prim)
 
         # Set any changed values in the models
-        for SliderEntryPanelModel in self.models:
-            for param in SliderEntryPanelModel.params:
+        for SliderGroup in self.group_widgets:
+            for param in SliderGroup.params:
                 if param.full_name in modifiers:
                     param.value.set_value(modifiers[param.full_name])
 
@@ -223,11 +225,11 @@ class ModifierUI(ui.Frame):
             model.apply_changes()
 
     def destroy(self):
-        """Destroys the ParamPanel instance as well as the models attached to each group of parameters
-        """
+        """Destroys the ParamPanel instance as well as the models attached to each group of parameters"""
         super().destroy()
         for model in self.models:
             model.destroy()
+
 
 class DemoUI(ModifierUI):
     """UI widget for modifying one blendshape on a demo mesh. Demonstrates helper-driving-skeleton functionality."""
@@ -245,10 +247,13 @@ class DemoUI(ModifierUI):
         modifier.fn = lambda model: {modifier.blend: model.get_value_as_float()}
         mods = [modifier]
         return {group: mods}, mods
+
+
 class NoSelectionNotification:
     """
     When no human selected, show notification.
     """
+
     def __init__(self):
         self._container = ui.ZStack()
         with self._container:
@@ -258,21 +263,15 @@ class NoSelectionNotification:
                 with ui.HStack(height=0):
                     ui.Spacer()
                     ui.ImageWithProvider(
-                        data_path('human_icon.png'),
+                        data_path("human_icon.png"),
                         width=192,
                         height=192,
-                        fill_policy=ui.IwpFillPolicy.IWP_PRESERVE_ASPECT_FIT
+                        fill_policy=ui.IwpFillPolicy.IWP_PRESERVE_ASPECT_FIT,
                     )
                     ui.Spacer()
-                self._message_label = ui.Label(
-                    "No human is current selected.",
-                    height=0,
-                    alignment=ui.Alignment.CENTER
-                )
+                self._message_label = ui.Label("No human is current selected.", height=0, alignment=ui.Alignment.CENTER)
                 self._suggestion_label = ui.Label(
-                    "Select a human prim to see its properties here.",
-                    height=0,
-                    alignment=ui.Alignment.CENTER
+                    "Select a human prim to see its properties here.", height=0, alignment=ui.Alignment.CENTER
                 )
 
     @property
