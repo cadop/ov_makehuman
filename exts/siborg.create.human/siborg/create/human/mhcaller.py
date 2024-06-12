@@ -1,6 +1,7 @@
 from typing import TypeVar, Union
 import warnings
 import io
+import os
 import makehuman
 from pathlib import Path
 
@@ -377,7 +378,8 @@ class MHCaller:
     def set_tpose(cls):
         """Sets the human to the T-Pose"""
         # Load the T-Pose BVH file
-        filepath = data_path('poses\\tpose.bvh')
+        pose_path = os.path.join("poses", "tpose.bvh")
+        filepath = data_path(pose_path)
         bvh_file = bvh.load(filepath, convertFromZUp="auto")
         # Create an animation track from the BVH file
         anim = bvh_file.createAnimationTrack(cls.human.getBaseSkeleton())
