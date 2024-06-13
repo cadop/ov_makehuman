@@ -107,6 +107,7 @@ class MacroModifier(Modifier):
 def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
     modifiers = defaultdict(dict)
+    groups = defaultdict(dict)
     import_macrodata_mappings(os.path.join(os.path.dirname(modifiers_path), "macro.json"))
     with open(modifiers_path, "r") as f:
         data = json.load(f)
@@ -117,9 +118,16 @@ def import_modifiers(prim, modifiers_path):
                     modifier = TargetModifier(groupname, modifier_data)
                 elif "macrovar" in modifier_data:
                     modifier = MacroModifier(groupname, modifier_data)
-                # Add the modifier to the list
+                # Add the modifier to the flat list
                 modifiers[modifier.data["label"]] = modifier.data
+                # Add the modifier name to the hierarchical list for UI grouping. Don't duplicate the data, just the names
+                # We can access the data from the flat list using the name. (stored as nested dicts in the groups with empty strings
+                #  because usd CustomData doesn't support lists)
+                groups[groupname][modifier.data["label"]] = ""
+    # Write flat list of modifiers to custom data
     write_custom_dict(prim, "modifiers", modifiers)
+    # Write grouped modifier names to custom data (don't duplicate the data, just the modifier names)
+    write_custom_dict(prim, "groups", groups)
 
 
 def write_custom_dict(prim, key, value):
