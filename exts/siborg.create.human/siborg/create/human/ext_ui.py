@@ -2,9 +2,9 @@ import omni.ui as ui
 from typing import List, Dict
 from pxr import Usd, Tf
 from siborg.create.human.shared import data_path
-from .modifiers import Modifier, MacroModifier, TargetModifier
 from . import mhusd
-from .widgets import SliderGroup
+from .widgets import SliderEntry
+from . import styles
 
 
 class ModifierUI(ui.Frame):
@@ -13,60 +13,67 @@ class ModifierUI(ui.Frame):
     def __init__(self, **kwargs):
         # Subclassing ui.Frame allows us to use styling on the whole widget
         super().__init__(**kwargs)
-        self.group_widgets: Dict[str, SliderGroup] = []
-        self.modifiers: Dict[str, dict] = {}
-        self.set_build_fn(self._build_widget)
+        self.slider_entries: List[SliderEntry] = []
+
+        self.modifier_data: Dict[str, dict] = {}
+        self.group_data: Dict[str, dict] = {}
         self.macrovars: Dict[str, float] = {}
         self.human_prim = None
 
+        self.set_build_fn(self._build_widget)
+
     def _build_widget(self):
         """Build the widget from scratch every time a human is selected"""
-        self.group_widgets = {}
-        
-        # Arrange modifiers into groups
-        groups : Dict[str, List[Modifier]] = {}
-        for name, data in self.modifiers.items():
-            group = data["group"]
-            if group not in groups:
-                groups[group] = []
-            if "target" in data:
-                modifier = TargetModifier(group, data)
-            elif "macrovar" in data:
-                modifier = MacroModifier(group, data)
-            groups[group].append(modifier)
 
         with self:
             with ui.ScrollingFrame():
                 with ui.VStack(spacing=10):
-                    for group, modifiers in groups.items():
-                        self.group_widgets[group] = SliderGroup(group, modifiers)
+                    # If there are no modifiers, show a message. We don't want to build a UI with no parameters
+                    if not self.modifier_data:
+                        ui.Label("No parameters available", height=0, alignment=ui.Alignment.CENTER)
+                        return
+                    # Create a collapseable frame for each group in the UI
+                    for group, modifiers in self.group_data.items():
+                        with ui.CollapsableFrame(group, style=styles.panel_style, collapsed=True, height=0):
+                            with ui.VStack(name="contents", spacing=8):
+                                for modifier in modifiers:
+                                    model = ui.SimpleFloatModel()
+                                    m = self.modifier_data[modifier]
+                                    self.slider_entries.append(
+                                        SliderEntry(
+                                            label=m["label"],
+                                            model=model,
+                                            min=m.get("min_val", 0),
+                                            max=m.get("max_val", 1),
+                                            default=m.get("default", 0),
+                                        )
+                                    )
 
         # Set the values of the sliders to the values of the modifiers
-        for sliderGroup in self.group_widgets.items():
-            for entry in sliderGroup.slider_entries:
-                if entry.label in self.modifiers:
-                    v = self.modifiers[entry.label]["weight"]
-                    entry.model.set_value(v)
+        for entry in self.slider_entries:
+            if entry.label in self.modifier_data:
+                default = self.modifier_data[entry.label].get("default", 0)
+                v = self.modifier_data[entry.label].get("weight", default)
+                entry.model.set_value(v)
+                # Create a callback for when the value is changed
+                callback = self.create_callback(self.modifier_data[entry.label])
+                entry.model.add_value_changed_fn(callback)
 
-        for m in self.modifiers:
-            callback = self.create_callback(m)
-            m.value_model.add_value_changed_fn(callback)
+    # def create_callback(self, m: Modifier):
+    #     """Callback for when a modifier value is changed.
 
-    def create_callback(self, m: Modifier):
-        """Callback for when a modifier value is changed.
+    #     Parameters
+    #     m : Modifier
+    #         Modifier whose value was changed. Used to determine which blendshape(s) to edit"""
 
-        Parameters
-        m : Modifier
-            Modifier whose value was changed. Used to determine which blendshape(s) to edit"""
+    #     def callback(v):
+    #         # If the modifier has a macrovar, we need to edit the macrovar
+    #         if m.macrovar:
+    #             mhusd.edit_blendshapes(self.human_prim, m.fn(v, self.macrovars))
+    #         else:
+    #             mhusd.edit_blendshapes(self.human_prim, m.fn(v))
 
-        def callback(v):
-            # If the modifier has a macrovar, we need to edit the macrovar
-            if m.macrovar:
-                mhusd.edit_blendshapes(self.human_prim, m.fn(v, self.macrovars))
-            else:
-                mhusd.edit_blendshapes(self.human_prim, m.fn(v))
-
-        return callback
+    #     return callback
 
     def load_values(self, human_prim: Usd.Prim):
         """Load values from the human prim into the UI. Specifically, this function
@@ -79,7 +86,7 @@ class ModifierUI(ui.Frame):
             The USD prim representing the human
         """
 
-        # Make the prim exists
+        # Make sure the prim exists
         if not human_prim.IsValid():
             self.human_prim = None
             self.macrovars = {}
@@ -89,14 +96,16 @@ class ModifierUI(ui.Frame):
             return
         self.human_prim = human_prim
         self.macrovars = mhusd.read_macrovars(human_prim)
-        self.modifiers = mhusd.read_modifiers(human_prim)
+        self.modifier_data = mhusd.read_modifiers(human_prim)
+        self.group_data = mhusd.read_groups(human_prim)
         self._build_widget()
 
     def destroy(self):
         """Destroys the ParamPanel instance as well as the models attached to each group of parameters"""
+        for w in self.group_widgets:
+            w.destroy()
+        self.group_widgets = []
         super().destroy()
-        for model in self.models:
-            model.destroy()
 
 
 class DemoUI(ModifierUI):

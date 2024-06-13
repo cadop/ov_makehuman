@@ -621,3 +621,8 @@ def read_modifiers(human: Usd.Prim) -> dict:
 
     # Return all the modifiers so we can use them to build the UI
     return modifiers
+
+
+def read_groups(human: Usd.Prim) -> dict:
+    """Load modifier groups for building the UI"""
+    return human.GetPrim().GetCustomDataByKey("groups") or {}
