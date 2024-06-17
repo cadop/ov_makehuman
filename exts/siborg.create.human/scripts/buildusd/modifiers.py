@@ -128,6 +128,8 @@ def import_modifiers(prim, modifiers_path):
     write_custom_dict(prim, "modifiers", modifiers)
     # Write grouped modifier names to custom data (don't duplicate the data, just the modifier names)
     write_custom_dict(prim, "groups", groups)
+    # Write the macrodata to the prim for mapping macrovars to specific targets
+    write_custom_dict(prim, "macrodata", macrodata)
 
 
 def write_custom_dict(prim, key, value):
