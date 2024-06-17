@@ -208,8 +208,8 @@ class SliderEntry:
                     self.drag = ui.FloatSlider(
                         model=self.model,
                         step=0.01,
-                        min_value=self.min,
-                        max_value=self.max,
+                        min=self.min,
+                        max=self.max,
                     )
                     return
                 self.drag = ui.FloatSlider(model=self.model, step=0.01)
