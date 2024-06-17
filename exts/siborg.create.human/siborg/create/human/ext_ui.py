@@ -4,7 +4,7 @@ from pxr import Usd, Tf
 from siborg.create.human.shared import data_path
 from . import mhusd
 from . import styles
-
+from . import modifiers
 
 class ModifierUI(ui.Frame):
     """UI Widget for displaying and modifying human parameters dynamically based on custom data on the human prim."""
@@ -58,21 +58,17 @@ class ModifierUI(ui.Frame):
                 callback = self.create_callback(self.modifier_data[entry.label])
                 entry.model.add_value_changed_fn(callback)
 
-    # def create_callback(self, m: Modifier):
-    #     """Callback for when a modifier value is changed.
+    def create_callback(self, m: dict):
+        """Callback for when a modifier value is changed.
 
-    #     Parameters
-    #     m : Modifier
-    #         Modifier whose value was changed. Used to determine which blendshape(s) to edit"""
+        Parameters
+        m : dict
+            dictionary containing the modifier data"""
 
-    #     def callback(v):
-    #         # If the modifier has a macrovar, we need to edit the macrovar
-    #         if m.macrovar:
-    #             mhusd.edit_blendshapes(self.human_prim, m.fn(v, self.macrovars))
-    #         else:
-    #             mhusd.edit_blendshapes(self.human_prim, m.fn(v))
+        def callback(v):
+            mhusd.edit_blendshapes(self.human_prim, modifiers.get_blendshape_vals(m, v))
 
-    #     return callback
+        return callback
 
     def load_values(self, human_prim: Usd.Prim):
         """Load values from the human prim into the UI. Specifically, this function
