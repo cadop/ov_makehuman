@@ -274,20 +274,20 @@ if __name__ == "__main__":
     stage = Usd.Stage.Open(os.path.join(data_path, "human_base.usd"))
     prim = stage.GetDefaultPrim().GetChild("skel_root")
     prim_path = prim.GetPath()
+    mesh = prim.GetChild("body")
+    # Get all existing blendshapes
+    for blendshape_path in UsdSkel.BindingAPI(mesh).GetBlendShapeTargetsRel().GetTargets():
 
-    # Get the original blendshape
-    blendshape_name = "lowerlegs_height_incr"
-    blendshape_path = prim_path.AppendChild("targets").AppendChild("armslegs").AppendChild(blendshape_name)
-    blendshape = UsdSkel.BlendShape.Get(stage, blendshape_path)
+        blendshape = UsdSkel.BlendShape.Get(stage, blendshape_path)
+        blendshape_name = blendshape.GetPrim().GetName()
+        # Store the skeletal transformations in a .skeltarget file
+        skeltarget_path = os.path.join(data_path, "skeltargets", f"{blendshape_name}.skeltarget")
+        blendshape_to_skeltarget(prim, blendshape_name, skeltarget_path)
 
-    # Store the skeletal transformations in a .skeltarget file
-    skeltarget_path = os.path.join(data_path, "lowerlegs_height_incr.skeltarget")
-    blendshape_to_skeltarget(prim, blendshape_name, skeltarget_path)
-
-    # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
-    skelfree_blendshape = separate_blendshape(stage, prim, blendshape, skeltarget_path)
-    bind_target(prim, skelfree_blendshape)
-    add_blendshape_to_animation(prim, skelfree_blendshape)
+        # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
+        skelfree_blendshape = separate_blendshape(stage, prim, blendshape, skeltarget_path)
+        bind_target(prim, skelfree_blendshape)
+        add_blendshape_to_animation(prim, skelfree_blendshape)
 
     # Save the new stage
     stage.GetRootLayer().Save()
