@@ -11,12 +11,15 @@ def get_blendshape_vals(modifier_data: dict, v: float) -> dict:
         max_val = modifier_data["max_val"]
 
         if "max_blend" in modifier_data and "min_blend" in modifier_data:
-            if v > modifier_data["default"]:
+            # Modifier has two blendshapes, with opposite values around 0
+            if v > 0:
                 max_blend = modifier_data["max_blend"]
                 return {max_blend, v} if v < max_val else {max_blend, max_val}
             else:
                 min_blend = modifier_data["min_blend"]
-                return {min_blend, v} if v > min_val else {min_blend, min_val}
+                # Invert the value for the min blendshape, as blendshape weights are always positive but the modifier
+                # value can be negative
+                return {min_blend, -v} if v > min_val else {min_blend, min_val}
         elif "blend" in modifier_data:
             blend = modifier_data["blend"]
             if v > min_val and v < max_val:
