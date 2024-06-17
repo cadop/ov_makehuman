@@ -14,20 +14,20 @@ def get_blendshape_vals(modifier_data: dict, v: float) -> dict:
             # Modifier has two blendshapes, with opposite values around 0
             if v > 0:
                 max_blend = modifier_data["max_blend"]
-                return {max_blend, v} if v < max_val else {max_blend, max_val}
+                return {max_blend: v} if v < max_val else {max_blend: max_val}
             else:
                 min_blend = modifier_data["min_blend"]
                 # Invert the value for the min blendshape, as blendshape weights are always positive but the modifier
                 # value can be negative
-                return {min_blend, -v} if v > min_val else {min_blend, min_val}
+                return {min_blend: -v} if v > min_val else {min_blend: min_val}
         elif "blend" in modifier_data:
             blend = modifier_data["blend"]
             if v > min_val and v < max_val:
-                return {blend, v}
+                return {blend: v}
             elif v <= min_val:
-                return {blend, min_val}
+                return {blend: min_val}
             else:
-                return {blend, max_val}
+                return {blend: max_val}
         else:
             raise ValueError("Target modifier data must contain either a 'max_blend' and 'min_blend' or 'blend' key.")
 
