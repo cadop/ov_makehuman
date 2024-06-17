@@ -1,13 +1,44 @@
 from typing import Callable
+from . import mhusd
+from pxr import Usd
 
 
-def apply_modifier(modifier_data: dict) -> Callable:
+def get_blendshape_vals(modifier_data: dict, v: float) -> dict:
     """Construct a modifier function from the given modifier data. Used for UI callbacks when a slider is changed."""
-    def modifier_fn(data: dict, value: float) -> float:
-        if modifier_data.get("macrovar"):
-            return modifier_data["fn"](value, modifier_data["macrovar"])
-        return modifier_data["fn"](value)
-    
+
+    def _get_blendshapes_for_target(modifier_data: dict, v) -> dict:
+        min_val = modifier_data["min_val"]
+        max_val = modifier_data["max_val"]
+
+        if "max_blend" in modifier_data and "min_blend" in modifier_data:
+            if v > modifier_data["default"]:
+                max_blend = modifier_data["max_blend"]
+                return {max_blend, v} if v < max_val else {max_blend, max_val}
+            else:
+                min_blend = modifier_data["min_blend"]
+                return {min_blend, v} if v > min_val else {min_blend, min_val}
+        elif "blend" in modifier_data:
+            blend = modifier_data["blend"]
+            if v > min_val and v < max_val:
+                return {blend, v}
+            elif v <= min_val:
+                return {blend, min_val}
+            else:
+                return {blend, max_val}
+        else:
+            raise ValueError("Target modifier data must contain either a 'max_blend' and 'min_blend' or 'blend' key.")
+
+    def _get_blendshapes_for_macrovar(modifier_data: dict, v) -> dict:
+        pass
+
+    if "macrovar" in modifier_data:
+        return _get_blendshapes_for_macrovar(modifier_data, v)
+    else:
+        try:
+            return _get_blendshapes_for_target(modifier_data, v)
+        except ValueError as e:
+            raise ValueError(f"Macrovar modifiers must contain a 'Macrovar' key. {e}")
+
 
 def calculate_weight_for_part(part, value):
     lower_bound = part["lowest"]
