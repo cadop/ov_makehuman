@@ -32,10 +32,10 @@ class ModifierUI(ui.Frame):
                         ui.Label("No parameters available", height=0, alignment=ui.Alignment.CENTER)
                         return
                     # Create a collapseable frame for each group in the UI
-                    for group, modifiers in self.group_data.items():
+                    for group, modifiers_list in self.group_data.items():
                         with ui.CollapsableFrame(group, style=styles.panel_style, collapsed=True, height=0):
                             with ui.VStack(name="contents", spacing=8):
-                                for modifier in modifiers:
+                                for modifier in modifiers_list:
                                     model = ui.SimpleFloatModel()
                                     m = self.modifier_data[modifier]
                                     self.slider_entries.append(
