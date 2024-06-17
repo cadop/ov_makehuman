@@ -1,14 +1,16 @@
 from typing import Callable
 from . import mhusd
 from pxr import Usd
-
+import omni.ui as ui
 
 def get_blendshape_vals(modifier_data: dict, v: float) -> dict:
     """Construct a modifier function from the given modifier data. Used for UI callbacks when a slider is changed."""
 
-    def _get_blendshapes_for_target(modifier_data: dict, v) -> dict:
+    def _get_blendshapes_for_target(modifier_data: dict, v: ui.SimpleFloatModel) -> dict:
         min_val = modifier_data["min_val"]
         max_val = modifier_data["max_val"]
+
+        v = v.get_value_as_float()
 
         if "max_blend" in modifier_data and "min_blend" in modifier_data:
             # Modifier has two blendshapes, with opposite values around 0
