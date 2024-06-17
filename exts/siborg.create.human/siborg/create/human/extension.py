@@ -54,6 +54,9 @@ class MakeHumanExtension(omni.ext.IExt):
         # Deregister the function that shows the window from omni.ui
         ui.Workspace.set_show_window_fn(WINDOW_TITLE, None)
 
+        # Unsubscribe from stage events
+        self._stage_event_sub.unsubscribe()
+
     async def _destroy_window_async(self):
         # wait one frame, this is due to the one frame defer
         # in Window::_moveToMainOSWindow()
