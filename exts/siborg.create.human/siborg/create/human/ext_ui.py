@@ -66,7 +66,8 @@ class ModifierUI(ui.Frame):
             dictionary containing the modifier data"""
 
         def callback(v):
-            mhusd.edit_blendshapes(self.human_prim, modifiers.get_blendshape_vals(m, v))
+            blendshapes = modifiers.get_blendshape_vals(m, v)
+            mhusd.edit_blendshapes(self.human_prim, blendshapes)
 
         return callback
 
