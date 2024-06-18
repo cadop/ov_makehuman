@@ -140,7 +140,7 @@ def compose_xforms(
     return Vt.Matrix4dArray().FromNumpy(new_xforms)
 
 
-def separate_blendshape(stage, prim, blendshape, skeltarget_path):
+def separate_blendshape(prim, blendshape, skeltarget_path):
     """Subtracts the mesh deformation due to skeletal transformations from deformation caused by the blendshape  to
     create a new blendshape without the corresponding skeletal transformation deformation. The resulting blendshape is
     added to the prim."""
@@ -287,7 +287,8 @@ if __name__ == "__main__":
         blendshape_to_skeltarget(prim, blendshape_name, skeltarget_path)
 
         # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
-        skelfree_blendshape = separate_blendshape(stage, prim, blendshape, skeltarget_path)
+        skelfree_blendshape = separate_blendshape(prim, blendshape, skeltarget_path)
+
         bind_target(prim, skelfree_blendshape)
         add_blendshape_to_animation(prim, skelfree_blendshape)
 
