@@ -132,7 +132,7 @@ def compose_xforms(
     source_xforms = np.array(source_xforms)
     skel_cache = UsdSkel.Cache()
     skel_query = skel_cache.GetSkelQuery(target_skeleton)
-    xforms = skel_query.ComputeJointLocalTransforms(time)
+    xforms = skel_query.ComputeJointLocalTransforms(time, True)
     xforms = np.array(xforms)
     inv_xforms = np.linalg.inv(xforms)
     new_xforms = np.matmul(source_xforms, inv_xforms)
@@ -257,9 +257,7 @@ def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, tim
         verts = points[vert_idxs]
         xforms.append(compute_transform(verts))
 
-    xforms = Vt.Matrix4dArray().FromNumpy(np.array(xforms))
-    topo = UsdSkel.Topology(joints)
-    return UsdSkel.ComputeJointLocalTransforms(topo, xforms, Gf.Matrix4d(np.eye(4)))
+    return skel_query.ComputeJointLocalTransforms(time, True)
 
 
 def compute_transform(head_vertices):
