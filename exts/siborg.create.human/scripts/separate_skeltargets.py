@@ -33,7 +33,6 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
     #         }
     #     }
     # }
-    Gf.Rotation.DecomposeRotation
     joints = skel.GetJointsAttr().Get()
     data = {"blendshape": blendshape_name, "skeleton": {}}
     for joint, xform in zip(joints, xforms):
