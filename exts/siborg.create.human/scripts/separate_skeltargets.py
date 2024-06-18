@@ -88,18 +88,23 @@ def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
     # Load the .skeltarget file
     with open(skeltarget_path, "r") as f:
         skeltarget = json.load(f)
-    # Apply the skeletal transformations to the skeleton joints
-    xforms = np.empty(16)
-    for joint, data in skeltarget["skeleton"].items():
-        translation = Gf.Vec3d(data["translation"])
-        rotation = Gf.Rotation(Gf.Vec3d(data["rotation"]["axis"]), data["rotation"]["angle"])
-        scale = Gf.Vec3d(data["scale"])
-        xform_mat = (
-            Gf.Matrix4d().SetTranslate(translation) * Gf.Matrix4d().SetRotate(rotation) * Gf.Matrix4d().SetScale(scale)
-        )
-        np.append(xforms, xform_mat)
-    xforms = Vt.Matrix4dArray().FromNumpy(xforms)
 
+    # Apply the skeletal transformations to the skeleton joints
+    num_joints = len(skel.GetJointsAttr().Get())
+    translations = Vt.Vec3fArray(num_joints)
+    rotations = Vt.QuatfArray(num_joints)
+    scales = Vt.Vec3hArray(num_joints)
+
+    for i, (joint, data) in enumerate(skeltarget["skeleton"].items()):
+        translations[i] = Gf.Vec3f(*data["translation"])
+
+        rotation = data["rotation"]
+        quatd = Gf.Rotation(rotation["axis"], rotation["angle"]).GetQuat()
+        rotations[i] = Gf.Quatf(quatd)
+
+        scales[i] = Gf.Vec3h(*data["scale"])
+    
+    xforms = UsdSkel.MakeTransforms(translations, rotations, scales)
     # Get the animation of the skeleton
     anim_path = UsdSkel.BindingAPI(skel).GetAnimationSourceRel().GetTargets()[0]
     anim = UsdSkel.Animation.Get(prim.GetStage(), anim_path)
