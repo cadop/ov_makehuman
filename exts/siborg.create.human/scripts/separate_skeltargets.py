@@ -211,7 +211,8 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
     # Zero out the weights for all blendshapes applied to the body
     weights_on_body = np.zeros(len(blendshapes_on_body))
     # Set the weight for the blendshape we're interested in
-    weights_on_body[np.isin(blendshape, blendshapes_on_body)] = weight
+    index = np.where(blendshapes_on_body == blendshape)
+    weights_on_body[index] = weight
     # Compute the new points
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(weights_on_body)
     blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
