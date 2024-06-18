@@ -257,7 +257,7 @@ def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, tim
         verts = points[vert_idxs]
         xforms.append(compute_transform(verts))
 
-    return skel_query.ComputeJointLocalTransforms(time, True)
+    return xforms
 
 
 def compute_transform(head_vertices):
