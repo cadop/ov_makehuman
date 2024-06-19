@@ -131,6 +131,11 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array
     success = skinningQuery.ComputeSkinnedPoints(world_xforms, points, time=0)
     if not success:
         raise ValueError("Failed to compute skinned points")
+    # # Reset the joint positions to rest pose so they don't stack
+    # NOTE Unclear if this is needed
+    # xforms = skelQuery.ComputeJointLocalTransforms(0, True)
+    # anim.SetTransforms(xforms, 0)
+
     return np.array(points)
 
 
