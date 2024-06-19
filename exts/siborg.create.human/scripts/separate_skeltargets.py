@@ -177,6 +177,34 @@ def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarg
     return blendshape
 
 
+def skel_from_skeltarget(prim: Usd.Prim, skeltarget_path: str):
+    '''Create a new skeleton from a .skeltarget file'''
+    with open(skeltarget_path, "r") as f:
+        skeltarget = json.load(f)
+    
+    skelroot = UsdSkel.Root.Define(prim.GetStage(), prim.GetPath().AppendChild("skeltargets"))
+    skel = UsdSkel.Skeleton.Define(prim.GetStage(), skelroot.GetPath().AppendChild(f"skeleton_{skeltarget['blendshape']}"))
+    skel.CreateJointsAttr(Vt.TokenArray(skeltarget["skeleton"].keys()))
+
+    # Apply the skeletal transformations to the skeleton joints
+    num_joints = len(skel.GetJointsAttr().Get())
+    translations = Vt.Vec3fArray(num_joints)
+    rotations = Vt.QuatfArray(num_joints)
+    scales = Vt.Vec3hArray(num_joints)
+
+    for i, (joint, data) in enumerate(skeltarget["skeleton"].items()):
+        translations[i] = Gf.Vec3f(*data["translation"])
+
+        rotation = data["rotation"]
+        quatd = Gf.Rotation(rotation["axis"], rotation["angle"]).GetQuat()
+        rotations[i] = Gf.Quatf(quatd)
+
+        scales[i] = Gf.Vec3h(*data["scale"])
+
+    xforms = UsdSkel.MakeTransforms(translations, rotations, scales)
+    skel.CreateRestTransformsAttr().Set(xforms, Usd.TimeCode.Default())
+
+
 def bind_target(prim: Usd.Prim, blendshape: UsdSkel.BlendShape):
     """Binds the new blendshape to the mesh.
 
@@ -297,6 +325,9 @@ if __name__ == "__main__":
 
         # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
         skelfree_blendshape = separate_blendshape(prim, blendshape, skeltarget_path)
+
+        # Create a new skeleton from the .skeltarget for visualization purposes
+        # skel_from_skeltarget(prim, skeltarget_path)
 
         bind_target(prim, skelfree_blendshape)
         add_blendshape_to_animation(prim, skelfree_blendshape)
