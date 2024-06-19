@@ -12,7 +12,15 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
     joints when referencing the joint helper geometry after the blendshape has been applied."""
 
     # Apply the blendshape to the mesh at 100% weight
-    points = compute_blendshape_points(prim, blendshape, 1.0)
+    points = compute_blendshape_points(prim, blendshape, 0.5)
+
+    mesh = UsdGeom.Mesh(prim.GetChild("body"))
+    # Create a new static mesh with blendshape offsets applied for debugging purposes
+    blend_mesh = UsdGeom.Mesh.Define(prim.GetStage(), prim.GetPath().AppendChild("blend_meshes").AppendChild(f"mesh_{blendshape}"))
+    blend_mesh.GetPointsAttr().Set(points)
+    blend_mesh.GetFaceVertexCountsAttr().Set(mesh.GetFaceVertexCountsAttr().Get())
+    blend_mesh.GetFaceVertexIndicesAttr().Set(mesh.GetFaceVertexIndicesAttr().Get())
+
     # Move the skeleton to the points defined by the helper geometry
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
     skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
