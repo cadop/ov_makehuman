@@ -7,16 +7,16 @@ import numpy as np
 import json
 
 
-def blendshape_to_skeltarget(prim, blendshape, output_path):
+def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: str):
     """Creates a .skeltarget file for a given blendshape. The file contains the transformations applied to the skeleton
     joints when referencing the joint helper geometry after the blendshape has been applied."""
 
     # Apply the blendshape to the mesh at 100% weight
-    points = compute_blendshape_points(prim, blendshape, 0.5)
+    points = compute_blendshape_points(prim, blendshape_name, 0.5)
 
     mesh = UsdGeom.Mesh(prim.GetChild("body"))
     # Create a new static mesh with blendshape offsets applied for debugging purposes
-    blend_mesh = UsdGeom.Mesh.Define(prim.GetStage(), prim.GetPath().AppendChild("blend_meshes").AppendChild(f"mesh_{blendshape}"))
+    blend_mesh = UsdGeom.Mesh.Define(prim.GetStage(), prim.GetPath().AppendChild("blend_meshes").AppendChild(f"mesh_{blendshape_name}"))
     blend_mesh.GetPointsAttr().Set(points)
     blend_mesh.GetFaceVertexCountsAttr().Set(mesh.GetFaceVertexCountsAttr().Get())
     blend_mesh.GetFaceVertexIndicesAttr().Set(mesh.GetFaceVertexIndicesAttr().Get())
@@ -67,7 +67,7 @@ def blendshape_to_skeltarget(prim, blendshape, output_path):
     # stage.GetRootLayer().Export(f"{output_path}.usda")
 
 
-def calculate_skeltarget_verts(prim, skeltarget_path) -> np.array:
+def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array:
     """Applies the skeletal transformations defined in a .skeltarget file to the skeleton joints. There should be a mesh
     in the scene that is already bound and skinned to the skeleton.
 
@@ -148,7 +148,7 @@ def compose_xforms(
     return Vt.Matrix4dArray().FromNumpy(new_xforms)
 
 
-def separate_blendshape(prim, blendshape, skeltarget_path):
+def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarget_path: str) -> UsdSkel.BlendShape:
     """Subtracts the mesh deformation due to skeletal transformations from deformation caused by the blendshape  to
     create a new blendshape without the corresponding skeletal transformation deformation. The resulting blendshape is
     added to the prim."""
@@ -177,7 +177,7 @@ def separate_blendshape(prim, blendshape, skeltarget_path):
     return blendshape
 
 
-def bind_target(prim, blendshape):
+def bind_target(prim: Usd.Prim, blendshape: UsdSkel.BlendShape):
     """Binds the new blendshape to the mesh.
 
     Parameters:
@@ -192,7 +192,7 @@ def bind_target(prim, blendshape):
     meshBinding.CreateBlendShapeTargetsRel().AddTarget(blendshape.GetPath())
 
 
-def add_blendshape_to_animation(prim, blendshape):
+def add_blendshape_to_animation(prim: Usd.Prim, blendshape: UsdSkel.BlendShape):
     """Adds the blendshape to the animation of the first mesh on the prim."""
     # Get the first skeleton bound to the prim
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
@@ -207,7 +207,7 @@ def add_blendshape_to_animation(prim, blendshape):
     anim.GetBlendShapesAttr().Set(blendshapes)
 
 
-def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
+def compute_blendshape_points(prim: Usd.Prim, blendshape_name: str, weight: float) -> np.array:
     """Compute the new points of a mesh after a blendshape has been applied."""
     body = prim.GetChild("body")
     mesh_binding = UsdSkel.BindingAPI(body)
@@ -219,7 +219,7 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
     # Zero out the weights for all blendshapes applied to the body
     weights_on_body = np.zeros(len(blendshapes_on_body))
     # Set the weight for the blendshape we're interested in
-    index = np.where(blendshapes_on_body == blendshape)
+    index = np.where(blendshapes_on_body == blendshape_name)
     weights_on_body[index] = weight
     # Compute the new points
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(weights_on_body)
@@ -244,7 +244,7 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape, weight) -> np.array:
     return new_points
 
 
-def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, time: int):
+def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, time: int) -> Vt.Matrix4dArray:
     """Compute the joint transforms for a skeleton from a set of points. Requires that the skeleton has customdata
     with a mapping from each bone to its set of vertices. Transforms are returned in local space."""
     # Get mapping from each bone to its set of vertices
@@ -269,7 +269,7 @@ def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, tim
     return xforms
 
 
-def compute_transform(head_vertices):
+def compute_transform(head_vertices: np.array) -> Gf.Matrix4d:
     """Compute the rest and bind transforms for a joint"""
     head_position = np.mean(head_vertices, axis=0)
     # Bind transform is in world space
