@@ -258,9 +258,8 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape_name: str, weight: floa
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(weights_on_body)
     blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
     subShapePointOffset = blend_query.ComputeSubShapePointOffsets()
-    current_points = body.GetAttribute("points").Get()
-    points = np.array(current_points)
-    points = Vt.Vec3fArray().FromNumpy(np.copy(points))
+    points = body.GetAttribute("points").Get()
+    current_points = np.array(points)
     success = blend_query.ComputeDeformedPoints(
         subShapeWeights, blendShapeIndices, subShapeIndices, blendShapePointIndices, subShapePointOffset, points
     )
