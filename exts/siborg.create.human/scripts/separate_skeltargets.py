@@ -131,20 +131,6 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array
     return np.array(points)
 
 
-def compose_xforms(
-    source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Skeleton, time: int = 0
-) -> Vt.Matrix4dArray:
-    source_xforms = np.array(source_xforms)
-    skel_cache = UsdSkel.Cache()
-    skel_query = skel_cache.GetSkelQuery(target_skeleton)
-    xforms = skel_query.ComputeJointLocalTransforms(time, True)
-    xforms = np.array(xforms)
-    inv_xforms = np.linalg.inv(xforms)
-    new_xforms = np.matmul(source_xforms, inv_xforms)
-    new_xforms = np.matmul(new_xforms, xforms)
-    return Vt.Matrix4dArray().FromNumpy(new_xforms)
-
-
 def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarget_path: str) -> UsdSkel.BlendShape:
     """Subtracts the mesh deformation due to skeletal transformations from deformation caused by the blendshape  to
     create a new blendshape without the corresponding skeletal transformation deformation. The resulting blendshape is
