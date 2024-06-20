@@ -335,9 +335,7 @@ if __name__ == "__main__":
 
         # Create a new skeleton from the .skeltarget for visualization purposes
         # skel_from_skeltarget(prim, skeltarget_path)
-
-        bind_target(prim, skelfree_blendshape)
-        add_blendshape_to_animation(prim, skelfree_blendshape)
+        
 
     # Save the new stage
     stage.GetRootLayer().Save()
