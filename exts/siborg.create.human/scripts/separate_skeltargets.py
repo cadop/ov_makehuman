@@ -284,8 +284,8 @@ if __name__ == "__main__":
     prim_path = prim.GetPath()
     mesh = prim.GetChild("body")
     # Get all existing blendshapes
-    for blendshape_path in UsdSkel.BindingAPI(mesh).GetBlendShapeTargetsRel().GetTargets():
-
+    # for blendshape_path in UsdSkel.BindingAPI(mesh).GetBlendShapeTargetsRel().GetTargets():
+    for blendshape_path in [UsdSkel.BindingAPI(mesh).GetBlendShapeTargetsRel().GetTargets()[139]]:
         blendshape = UsdSkel.BlendShape.Get(stage, blendshape_path)
         blendshape_name = blendshape.GetPrim().GetName()
         # Store the skeletal transformations in a .skeltarget file
