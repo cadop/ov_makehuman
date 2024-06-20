@@ -210,36 +210,6 @@ def skel_from_skeltarget(prim: Usd.Prim, skeltarget_path: str):
     skel.CreateRestTransformsAttr().Set(xforms, Usd.TimeCode.Default())
 
 
-def bind_target(prim: Usd.Prim, blendshape: UsdSkel.BlendShape):
-    """Binds the new blendshape to the mesh.
-
-    Parameters:
-    ------------
-    prim: Usd.Prim
-        The skelroot containing and mesh
-    blendshape: BlendShape
-        The blendshape to be bound to the mesh (should probably be inside the skelroot already)"""
-    # Get the mesh
-    body = prim.GetChild("body")
-    meshBinding = UsdSkel.BindingAPI.Apply(body.GetPrim())
-    meshBinding.CreateBlendShapeTargetsRel().AddTarget(blendshape.GetPath())
-
-
-def add_blendshape_to_animation(prim: Usd.Prim, blendshape: UsdSkel.BlendShape):
-    """Adds the blendshape to the animation of the first mesh on the prim."""
-    # Get the first skeleton bound to the prim
-    skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
-    skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
-    # Get the animation of the skeleton
-    anim_path = UsdSkel.BindingAPI(skel).GetAnimationSourceRel().GetTargets()[0]
-    anim = UsdSkel.Animation.Get(prim.GetStage(), anim_path)
-    # Get the blendshapes bound to the mesh
-    blendshapes = np.array(anim.GetBlendShapesAttr().Get())
-    # Add the new blendshape to the animation
-    np.append(blendshapes, blendshape.GetPath())
-    anim.GetBlendShapesAttr().Set(blendshapes)
-
-
 def compute_blendshape_points(prim: Usd.Prim, blendshape_name: str, weight: float) -> np.array:
     """Compute the new points of a mesh after a blendshape has been applied."""
     body = prim.GetChild("body")
@@ -335,7 +305,7 @@ if __name__ == "__main__":
 
         # Create a new skeleton from the .skeltarget for visualization purposes
         # skel_from_skeltarget(prim, skeltarget_path)
-        
+
 
     # Save the new stage
     stage.GetRootLayer().Save()
