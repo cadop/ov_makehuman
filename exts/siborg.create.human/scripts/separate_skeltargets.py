@@ -142,6 +142,14 @@ def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarg
 
     # Calculate the new vertices of the blendshape after the skeletal transformations have been applied
     skel_deformation = calculate_skeltarget_verts(prim, skeltarget_path)
+
+    # Create a new mesh with the skeletal deformation for visualization purposes
+    mesh = UsdGeom.Mesh(body)
+    skel_mesh = UsdGeom.Mesh.Define(prim.GetStage(), prim.GetPath().AppendChild("skel_mesh"))
+    skel_mesh.GetPointsAttr().Set(Vt.Vec3fArray().FromNumpy(skel_deformation))
+    skel_mesh.GetFaceVertexCountsAttr().Set(mesh.GetFaceVertexCountsAttr().Get())
+    skel_mesh.GetFaceVertexIndicesAttr().Set(mesh.GetFaceVertexIndicesAttr().Get())
+
     # Calculate the offset between the original mesh and the mesh after skeletal deformation
     skeletal_deformation_offset = default_points - skel_deformation
 
