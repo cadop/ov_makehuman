@@ -294,8 +294,7 @@ if __name__ == "__main__":
         skelfree_blendshape = separate_blendshape(prim, blendshape, skeltarget_path)
 
         # Create a new skeleton from the .skeltarget for visualization purposes
-        # skel_from_skeltarget(prim, skeltarget_path)
-
+        skel_from_skeltarget(prim, skeltarget_path)
 
     # Save the new stage
     stage.GetRootLayer().Save()
