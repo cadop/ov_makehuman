@@ -298,7 +298,10 @@ def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, tim
         verts = points[vert_idxs]
         xforms.append(compute_transform(verts))
 
-    return xforms
+    # Convert to local space
+    xforms = Vt.Matrix4dArray().FromNumpy(np.array(xforms))
+    topo = UsdSkel.Topology(joints)
+    return UsdSkel.ComputeJointLocalTransforms(topo, xforms, Gf.Matrix4d(np.eye(4)))
 
 
 def compute_transform(head_vertices: np.array) -> Gf.Matrix4d:
