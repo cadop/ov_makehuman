@@ -214,17 +214,21 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape_name: str, weight: floa
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(weights_on_body)
     blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
     subShapePointOffset = blend_query.ComputeSubShapePointOffsets()
-    points = body.GetAttribute("points").Get()
-    current_points = np.array(points)
+    original_points = body.GetAttribute("points").Get()
+    points_to_calculate = Vt.Vec3fArray.FromNumpy(np.array(original_points, copy=True))
     success = blend_query.ComputeDeformedPoints(
-        subShapeWeights, blendShapeIndices, subShapeIndices, blendShapePointIndices, subShapePointOffset, points
+        subShapeWeights,
+        blendShapeIndices,
+        subShapeIndices,
+        blendShapePointIndices,
+        subShapePointOffset,
+        points_to_calculate,
     )
     if success:
         # Compare old points to new points
-        old_points = np.array(current_points)
-        new_points = np.array(points)
+        new_points = np.array(points_to_calculate)
         # See what changed
-        changed = np.where(old_points != new_points)[0]
+        changed = np.where(original_points != new_points)[0]
         # print(f"Changed: {changed}")
     else:
         raise ValueError("Failed to compute deformed points")
