@@ -115,12 +115,12 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array
     skelRoot = UsdSkel.Root(prim)
     skelCache = UsdSkel.Cache()
     skelCache.Populate(skelRoot, Usd.PrimDefaultPredicate)
-    skinningQuery = skelCache.GetSkinningQuery(body)
     skelQuery = skelCache.GetSkelQuery(skel)
     xformCache = UsdGeom.XformCache(0)
     world_xforms = skelQuery.ComputeJointWorldTransforms(xformCache)
 
     # Calculate the new vertices of the mesh
+    skinningQuery = skelCache.GetSkinningQuery(body)
     success = skinningQuery.ComputeSkinnedPoints(world_xforms, points, time=0)
     if not success:
         raise ValueError("Failed to compute skinned points")
