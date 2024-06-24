@@ -201,12 +201,14 @@ def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarg
 
 
 def skel_from_skeltarget(prim: Usd.Prim, skeltarget_path: str):
-    '''Create a new skeleton from a .skeltarget file'''
+    """Create a new skeleton from a .skeltarget file"""
     with open(skeltarget_path, "r") as f:
         skeltarget = json.load(f)
-    
+
     skelroot = UsdSkel.Root.Define(prim.GetStage(), prim.GetPath().AppendChild("skeltargets"))
-    skel = UsdSkel.Skeleton.Define(prim.GetStage(), skelroot.GetPath().AppendChild(f"skeleton_{skeltarget['blendshape']}"))
+    skel = UsdSkel.Skeleton.Define(
+        prim.GetStage(), skelroot.GetPath().AppendChild(f"skeleton_{skeltarget['blendshape']}")
+    )
     skel.CreateJointsAttr(Vt.TokenArray(skeltarget["skeleton"].keys()))
 
     # Apply the skeletal transformations to the skeleton joints
