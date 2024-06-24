@@ -5,6 +5,7 @@ import os
 from pxr import Usd, UsdSkel, UsdGeom, Gf, Vt
 import numpy as np
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 
 def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: str):
@@ -12,7 +13,7 @@ def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: 
     joints when referencing the joint helper geometry after the blendshape has been applied."""
 
     # Apply the blendshape to the mesh at 100% weight
-    points = compute_blendshape_points(prim, blendshape_name, 0.5)
+    points = compute_blendshape_points(prim, blendshape_name, 1)
 
     # Move the skeleton to the points defined by the helper geometry
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
@@ -60,7 +61,7 @@ def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: 
     # stage.GetRootLayer().Export(f"{output_path}.usda")
 
 
-def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array:
+def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> Vt.Vec3fArray:
     """Applies the skeletal transformations defined in a .skeltarget file to the skeleton joints. There should be a mesh
     in the scene that is already bound and skinned to the skeleton.
 
@@ -73,25 +74,16 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array
 
     Returns:
     ------------
-    np.array
+    Vt.Vec3fArray
         The new vertices of the mesh after the skeletal transformations have been applied
 
     """
-
-    # Get the skeleton through the binding API. We assume the first target is the skeleton we want to use
-    skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
-    skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
-    # Get the mesh points
-    body = prim.GetChild("body")
-    current_points = body.GetAttribute("points").Get()
-    points = Vt.Vec3fArray(current_points)
-
     # Load the .skeltarget file
     with open(skeltarget_path, "r") as f:
         skeltarget = json.load(f)
 
-    # Apply the skeletal transformations to the skeleton joints
-    num_joints = len(skel.GetJointsAttr().Get())
+    # Read the skeletal transformations from the .skeltarget file
+    num_joints = len(skeltarget["skeleton"])
     translations = Vt.Vec3fArray(num_joints)
     rotations = Vt.QuatfArray(num_joints)
     scales = Vt.Vec3hArray(num_joints)
@@ -104,31 +96,78 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> np.array
         rotations[i] = Gf.Quatf(quatd)
 
         scales[i] = Gf.Vec3h(*data["scale"])
-    
+
     xforms = UsdSkel.MakeTransforms(translations, rotations, scales)
+
+    # Get the skeleton through the binding API. We assume the first target is the skeleton we want to use
+    skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
+    skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
+    body = prim.GetChild("body")
+
     # Get the animation of the skeleton
     anim_path = UsdSkel.BindingAPI(skel).GetAnimationSourceRel().GetTargets()[0]
     anim = UsdSkel.Animation.Get(prim.GetStage(), anim_path)
     anim.SetTransforms(xforms, 0)
 
-    # Query the skeleton and geometry, and compute the new vertices of the mesh
+    # Query the skeleton and geometry
     skelRoot = UsdSkel.Root(prim)
     skelCache = UsdSkel.Cache()
     skelCache.Populate(skelRoot, Usd.PrimDefaultPredicate)
     skelQuery = skelCache.GetSkelQuery(skel)
-    xformCache = UsdGeom.XformCache(0)
-    world_xforms = skelQuery.ComputeJointWorldTransforms(xformCache)
-
-    # Calculate the new vertices of the mesh
     skinningQuery = skelCache.GetSkinningQuery(body)
-    success = skinningQuery.ComputeSkinnedPoints(world_xforms, points, time=0)
-    if not success:
-        raise ValueError("Failed to compute skinned points")
+
+    # Get the points of the mesh
+    points = body.GetAttribute("points").Get(0)
+
+    # Apply the joint animation to the skinned mesh
+    skinned_points = applyJointAnimation(skinningQuery, skelQuery, 0, points)
+
     # # Reset the joint positions to rest pose so they don't stack
     xforms = skelQuery.ComputeJointLocalTransforms(0, True)
     anim.SetTransforms(xforms, 0)
 
-    return np.array(points)
+    return skinned_points
+
+
+def applyJointAnimation(
+    skinning_query: UsdSkel.SkinningQuery, skel_query: UsdSkel.SkeletonQuery, time: float, points: Vt.Vec3fArray
+):
+    """Apply the joint animation to the skinned mesh at a given time. Adapted from
+    https://github.com/TheFoundryVisionmongers/KatanaUsdPlugins/blob/main/lib/usdKatana/utils.cpp"""
+
+    # Get the skinning transform from the skeleton.
+    skinning_xforms = skel_query.ComputeSkinningTransforms(time)
+
+    # Get the prim's points first and then skin them.
+    skinned_points = Vt.Vec3fArray.FromNumpy(np.array(points, copy=True))
+    skinning_query.ComputeSkinnedPoints(skinning_xforms, skinned_points, time)
+
+    # Apply transforms to get the points in mesh prim space instead of skeleton space.
+    xform_cache = UsdGeom.XformCache(time)
+    skel_prim = skel_query.GetPrim()
+
+    skel_local_to_world = xform_cache.GetLocalToWorldTransform(skel_prim)
+    prim_world_to_local = xform_cache.GetLocalToWorldTransform(skinning_query.GetPrim()).GetInverse()
+    skel_to_prim_local = skel_local_to_world * prim_world_to_local
+
+    def transform_points(start, end):
+        for i in range(start, end):
+            skinned_points[i] = skel_to_prim_local.Transform(skinned_points[i])
+
+    points_size = len(skinned_points)
+    grain_size = 1000
+
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for i in range(0, points_size, grain_size):
+            start = i
+            end = min(i + grain_size, points_size)
+            futures.append(executor.submit(transform_points, start, end))
+
+        for future in futures:
+            future.result()
+
+    return skinned_points
 
 
 def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarget_path: str) -> UsdSkel.BlendShape:
