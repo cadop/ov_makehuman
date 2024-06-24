@@ -177,10 +177,10 @@ def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarg
     # Get the mesh
     body = prim.GetChild("body")
     # Get the mesh points before any transformation is applied
-    default_points = body.GetAttribute("points").Get()
+    default_points = np.array(body.GetAttribute("points").Get())
 
     # Calculate the new vertices of the blendshape after the skeletal transformations have been applied
-    skel_deformation = calculate_skeltarget_verts(prim, skeltarget_path)
+    skel_deformation = np.array(calculate_skeltarget_verts(prim, skeltarget_path))
 
     # Calculate the offset between the original mesh and the mesh after skeletal deformation
     skeletal_deformation_offset = skel_deformation - default_points
