@@ -41,7 +41,7 @@ def create_skeleton(stage, skel_root, rig, mesh_verts, name="skeleton") -> UsdSk
     rootBinding.CreateSkeletonRel().AddTarget(skeleton.GetPrim().GetPath())
 
     # Determine the root, which has no parent. If there are multiple roots, use the last one.
-    root = [name for name, item in rig.items() if item["parent"] == None][-1]
+    root = [name for name, item in rig.items() if item["parent"] is None][-1]
 
     visited = []  # List to keep track of visited bones.
     queue = [[root, rig[root]]]  # Initialize a queue
