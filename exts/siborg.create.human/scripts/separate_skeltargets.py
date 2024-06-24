@@ -326,7 +326,8 @@ if __name__ == "__main__":
 
         # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
         skelfree_blendshape = separate_blendshape(prim, blendshape, skeltarget_path)
+        print(f"Removed skeletal deformation from {blendshape_name:>31}")
 
     # Save the new stage
     stage.GetRootLayer().Save()
-    print("Done")
+    print(f"{stage.GetDefaultPrim().GetName()} has been saved. Skeltargets have been written to {data_path}/skeltargets")
