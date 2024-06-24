@@ -183,7 +183,7 @@ def separate_blendshape(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, skeltarg
     skel_deformation = calculate_skeltarget_verts(prim, skeltarget_path)
 
     # Calculate the offset between the original mesh and the mesh after skeletal deformation
-    skeletal_deformation_offset = default_points - skel_deformation
+    skeletal_deformation_offset = skel_deformation - default_points
 
     # Get the blendshape offsets
     blendshape_offsets = np.array(blendshape.GetOffsetsAttr().Get())
