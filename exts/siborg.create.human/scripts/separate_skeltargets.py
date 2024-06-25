@@ -330,4 +330,4 @@ if __name__ == "__main__":
 
     # Save the new stage
     stage.GetRootLayer().Save()
-    print(f"{stage.GetDefaultPrim().GetName()} has been saved. Skeltargets have been written to {data_path}/skeltargets")
+    print(f"{stage.GetDefaultPrim().GetName()} has been saved. Skeltargets have been written to {os.path.join(data_path,'skeltargets')}")
