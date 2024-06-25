@@ -340,26 +340,9 @@ def edit_blendshapes(prim: Usd.Prim, blendshapes: Dict[str, float], time = 0):
     skeleton_path = next(path for path in skeleton_paths if path.elementString != "resize_skeleton")
     skeleton = UsdSkel.Skeleton.Get(stage, skeleton_path)
     animation_paths = UsdSkel.BindingAPI(skeleton).GetAnimationSourceRel().GetTargets()
-    animation_path = next(path for path in animation_paths if path.elementString == "blendshape_animation")
+    animation_path = next(path for path in animation_paths if path.elementString == "target_anim")
     animation = UsdSkel.Animation.Get(stage, animation_path)
     apply_weights(animation, blendshapes, time)
-    helpers = prim.GetChild("joints")
-    points = compute_new_points(helpers, animation, time)
-    # Get the skeleton for resizing
-    resize_skelpath = next(path for path in skeleton_paths if path.elementString == "resize_skeleton")
-    resize_skel = UsdSkel.Skeleton.Get(stage, resize_skelpath)
-    scale_animation_path = UsdSkel.BindingAPI(resize_skel).GetAnimationSourceRel().GetTargets()[0]
-    scale_animation = UsdSkel.Animation.Get(stage, scale_animation_path)
-
-    source_xforms = joints_from_points(resize_skel, points, time)
-    scale_animation.SetTransforms(source_xforms, time)
-    new_xforms = compose_xforms(source_xforms, skeleton, time)
-    animation.SetTransforms(new_xforms, time)
-
-    # Set joints property on both animations
-    # skel_cache = UsdSkel.Cache()
-    # add_joints_attr(skel_cache, skeleton, animation)
-    # add_joints_attr(skel_cache, resize_skel, scale_animation)
 
 
 def add_joints_attr(skel_cache, skel, anim):
@@ -411,7 +394,10 @@ def compute_new_points(body: Usd.Prim, animation: UsdSkel.Animation, time=0) -> 
     blendshapes_on_body = body.GetAttribute("skel:blendShapes").Get()
     blendshapes_on_body = np.array(blendshapes_on_body)
     weights_on_body = current_weights[np.isin(current_blendshapes, blendshapes_on_body)]
-    current_blendshapes = current_blendshapes[np.isin(current_blendshapes, blendshapes_on_body)]
+    # Noticed while working on separate_skeltargets.py that the this line is useless. We don't use
+    # the blendshapes_on_body variable anywhere else in the function so we don't need to filter the blendshapes,
+    # we just need to filter the weights
+    # current_blendshapes = current_blendshapes[np.isin(current_blendshapes, blendshapes_on_body)]
     current_weights = Vt.FloatArray().FromNumpy(weights_on_body)
     subShapeWeights, blendShapeIndices, subShapeIndices = blend_query.ComputeSubShapeWeights(current_weights)
     blendShapePointIndices = blend_query.ComputeBlendShapePointIndices()
@@ -578,92 +564,65 @@ def write_macrovars(human: Usd.Prim, macrovars: Dict[str, float]):
     # Write the macrovars
     human.SetCustomDataByKey("macrovars", macrovars)
 
-# def create_skeleton(bones: OrderedDict, offset: List[float] = [0, 0, 0]):
-#     """Create a USD skeleton from a Skeleton object. Traverse the skeleton data
-#     and build a skeleton tree.
 
-#     Parameters
-#     ----------
-#     bones : OrderedDict
-#         Dictionary of bone names to bone data
-#     offset : List[float], optional
-#         Geometric translation to apply, by default [0, 0, 0]
-#     Returns
-#     -------
-#     skel : UsdSkel.Skeleton
-#         The skeleton prim"""
+def read_modifiers(human: Usd.Prim) -> dict:
+    """Load values for modifiers from the animation data authored on a human prim
 
-#     rel_xforms = []
-#     bind_xforms = []
-#     joint_names = []
-#     joint_paths = []
+    Parameters
+    ----------
+    human : Usd.Prim
+        The human prim
 
-#     root = bones["root"]
+    Returns
+    -------
+    Dict[str, float]
+        A dictionary of modifier names to values
+    """
+    # Get the modifiers
+    customdata = human.GetPrim().GetCustomData()
+    modifiers = customdata.get("modifiers")
 
-#     visited = []  # List to keep track of visited bones.
-#     queue = []  # Initialize a queue
-#     path_queue = []  # Keep track of paths in a parallel queue
+    # Get the animation
+    skeleton_path = UsdSkel.BindingAPI(human).GetSkeletonRel().GetTargets()[0]
+    skeleton = UsdSkel.Skeleton.Get(human.GetStage(), skeleton_path)
+    animation_path = UsdSkel.BindingAPI(skeleton).GetAnimationSourceRel().GetTargets()[0]
+    animation = UsdSkel.Animation.Get(human.GetStage(), animation_path)
+
+    # Find any blendshapes with non-zero weights
+    blendshapes = np.array(animation.GetBlendShapesAttr().Get(0))
+    weights = np.array(animation.GetBlendShapeWeightsAttr().Get(0))
+    blendshapes = blendshapes[weights > 0]
+    weights = weights[weights > 0]
+    # Find the modifiers that correspond to these blendshapes. Modifiers customdata is a hierarchical dictionary and
+    # the blendshape names are stored in the "blend," "max_blend," or "minblend" key in the following structure:
+    #     modifier name:
+    #         blend: blendshape name XOR
+    #         max_blend: blendshape name AND
+    #         min_blend: blendshape name
+    for blendshape in blendshapes:
+        # Modifier value is the weight of the blendshape "blend" if a single blendshape is specified, or the weight
+        # of whichever blendshape "min_blend" or "max_blend" is not the same as the center of the weight range
+        # specified by "min_val" and "max_val"
+        
+        # Get the modifier which has the blendshape in its "blend," "max_blend," or "min_blend" key
+        modifier = next(modifier for modifier, data in modifiers.items() if blendshape in data.values())
+        index = np.where(blendshapes == blendshape)[0][0]
+        weight = weights[index]
+        modifiers[modifier]["weight"] = weight
+        # if data.get("blend"):
+        #     blendshape = data["blend"]
+        # else:
+        #     center = (data.get("min_val") + data.get("max_val")) / 2
+        #     blendshape = data["min_blend"] if center == weights[blendshapes == data["min_blend"]] else data["max_blend"]
+        # # Get the weight of the blendshape
+        # weight = weights[blendshapes == blendshape][0]
+        # # Store the modifier value
+        # modifiers[modifier]["weight"] = weight
+
+    # Return all the modifiers so we can use them to build the UI
+    return modifiers
 
 
-#     visited.append(root)
-#     queue.append(root)
-#     name = Tf.MakeValidIdentifier(root.name)
-#     path_queue.append(name + "/")
-
-#     # joints are relative to the root, so we don't prepend a path for the root
-#     self._process_bone(root, "", offset=offset)
-
-#     # Traverse skeleton (breadth-first) and store joint data
-#     while queue:
-#         v = queue.pop(0)
-#         path = path_queue.pop(0)
-#         for neighbor in v.children:
-#             if neighbor not in visited:
-#                 visited.append(neighbor)
-#                 queue.append(neighbor)
-#                 name = Tf.MakeValidIdentifier(neighbor.name)
-#                 path_queue.append(path + name + "/")
-                
-# @dataclass
-# class Bone:
-#     name: str
-#     parent: str
-#     children: List[Bone]
-#     weights: np.ndarray[float, 2]
-#     helper_cube: str = None
-#     vertex_index: int = None
-
-
-
-# def load_skel_json(skeleton_json: str, weights_json: str):
-#     """Load a skeleton from a JSON file
-
-#     Parameters
-#     ----------
-#     skeleton_json : str
-#         Path to the JSON file containing the skeleton data
-#     weights_json : str
-#         Path to the JSON file containing the weights data
-
-#     Returns
-#     -------
-#     bones : OrderedDict
-#         Dictionary of bone names to bone data
-#     """
-
-#     bones = OrderedDict()
-
-#     # Load the bones from the skeleton JSON
-#     with open(skeleton_json, "r") as skeleton_json:
-#         skeleton_data = json.load(skeleton_json)
-#         for bone, bone_data in skeleton_data.items():
-#             bones[bone] = bone_data
-
-#     # Load the weights from the weights JSON
-#     with open(weights_json, "r") as weights_json:
-#         weights_data = json.load(weights_json)
-#         for bone, bone_data in weights_data.items():
-#             bones[bone]["weights"] = bone_data
-
-if __name__ == "__main__":
-    make_human()
+def read_groups(human: Usd.Prim) -> dict:
+    """Load modifier groups for building the UI"""
+    return human.GetPrim().GetCustomDataByKey("groups") or {}

@@ -89,8 +89,8 @@ class MacroModifier(Modifier):
 
         self.isEthnicModifier = modifier_data.get("modifierType") == "EthnicModifier"
         if self.isEthnicModifier:
-            # TODO Uppercase the label
-            self.data["label"] = modifier_data["macrovar"]
+            self.data["label"] = modifier_data["macrovar"].capitalize()
+            self.data["macrovar"] = modifier_data["macrovar"].lower()
             self.data["parts"] = None
             self.data["center"] = None
             return
@@ -99,12 +99,14 @@ class MacroModifier(Modifier):
         self.data["macrovar"] = modifier_data["macrovar"].lower()
         macrovar_data = macrodata["macrotargets"][self.data["macrovar"]]
         self.data["label"] = macrovar_data["label"]
-        self.data["parts"] = macrovar_data["parts"]
-        self.data["center"] = calculate_center_of_range(self.data["parts"])
+        for idx, part in enumerate(macrovar_data["parts"]):
+            self.data[f"part{idx}"] = part
+        self.data["center"] = calculate_center_of_range(macrovar_data["parts"])
 
 
 def import_modifiers(prim, modifiers_path):
     """Import modifiers from a JSON file. Write customdata to the prim to store the modifiers."""
+    modifiers = defaultdict(dict)
     groups = defaultdict(dict)
     import_macrodata_mappings(os.path.join(os.path.dirname(modifiers_path), "macro.json"))
     with open(modifiers_path, "r") as f:
@@ -116,11 +118,30 @@ def import_modifiers(prim, modifiers_path):
                     modifier = TargetModifier(groupname, modifier_data)
                 elif "macrovar" in modifier_data:
                     modifier = MacroModifier(groupname, modifier_data)
-                # Add the modifier to the group
-                groups[groupname][modifier.data["label"]] = modifier.data
+                # Add the modifier to the flat list
+                modifiers[modifier.data["label"]] = modifier.data
+                # Add the modifier name to the hierarchical list for UI grouping. Don't duplicate the data, just the names
+                # We can access the data from the flat list using the name. (stored as nested dicts in the groups with empty strings
+                #  because usd CustomData doesn't support lists)
+                groups[groupname][modifier.data["label"]] = ""
+    # Write flat list of modifiers to custom data
+    write_custom_dict(prim, "modifiers", modifiers)
+    # Write grouped modifier names to custom data (don't duplicate the data, just the modifier names)
+    write_custom_dict(prim, "groups", groups)
+    # Write the macro combinations to the prim for mapping macrovars to specific targets. Once again, the list data mustbe stored as nested dicts
+    for combo, labels in macrodata["combinations"].items():
+        write_custom_dict(prim, f"combinations:{combo}", {label: "" for label in labels})
 
-    custom_data = json.dumps(groups, indent=4)
-    prim.SetCustomDataByKey("modifiers", custom_data)
+
+def write_custom_dict(prim, key, value):
+    """Write a dictionary with subdictionaries to the custom data of a prim.
+    Per USD docs: "The keyPath is a ':'-separated path identifying a value in subdictionaries."
+    https://openusd.org/release/api/class_usd_object.html#abdcc93cd6a4dd8ad2bbe2134316ad836"""
+    for k, v in value.items():
+        if isinstance(v, dict):
+            write_custom_dict(prim, f"{key}:{k}", v)
+        else:
+            prim.SetCustomDataByKey(f"{key}:{k}", v)
 
 
 macrodata: dict = {}

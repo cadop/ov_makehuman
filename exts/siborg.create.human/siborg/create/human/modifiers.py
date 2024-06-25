@@ -1,198 +1,103 @@
+from typing import Callable
+from . import mhusd
+from pxr import Usd
 import omni.ui as ui
-from collections import defaultdict
-import omni.kit
-import os
-import json
-from pxr import Tf
-from typing import Callable, Dict
 
-class Modifier:
-    """A class holding the data and methods for a modifier
+def get_blendshape_vals(modifier_data: dict, v: float) -> dict:
+    """Construct a modifier function from the given modifier data. Used for UI callbacks when a slider is changed."""
 
-    Attributes
-    ----------
-    min: float, optional
-        The minimum value for the parameter. By default 0
-    max: float, optional
-        The maximum value for the parameter. By default 1
-    value : ui.SimpleFloatModel
-        The model to track the current value of the parameter. By default None
-    """
-    def __init__(self, group, modifier_data: dict):
+    def _get_blendshapes_for_target(modifier_data: dict, v: ui.SimpleFloatModel) -> dict:
+        min_val = modifier_data["min_val"]
+        max_val = modifier_data["max_val"]
 
-        self.group = group
+        v = v.get_value_as_float()
 
-        
-        self.max_val = 1
-        self.min_val = 0
-        self.default_val = 0
-        self.macrovar = None
-        self.value_model = ui.SimpleFloatModel(self.default_val)
-
-        self.fn = self.get_modifier_fn()
-
-    def get_modifier_fn(self) -> Callable:
-        """Return a method to list modified blendshapes and their weights
-
-        Parameters
-        ----------
-        model : ui.SimpleFloatModel
-            The model to get the value from
-        
-        Returns
-        -------
-        dict
-            A dictionary of blendshape names and weights
-        """
-        raise NotImplementedError
-
-class TargetModifier(Modifier):
-    """ A class holding the data and methods for a modifier that targets specific blendshapes.
-    blend: str
-        The base name of the blendshape(s) to modify
-    min_blend: str, optional
-        Suffix (appended to `blendshape`) naming the blendshape for decreasing the value. Empty string by default.
-    max_blend: str, optional
-        Suffix (appended to `blendshape`) naming the blendshape for increasing the value. Empty string by default.
-    image: str, optional
-        The path to the image to use for labeling. By default None
-    label: str, optional
-        The label to use for the modifier. By default None
-    """
-    def __init__(self, group, modifier_data: dict):
-        if "target" in modifier_data:
-            tlabel = modifier_data["target"].split("-")
-            if "|" in tlabel[len(tlabel) - 1]:
-                tlabel = tlabel[:-1]
-            if len(tlabel) > 1 and tlabel[0] == group:
-                label = tlabel[1:]
+        if "max_blend" in modifier_data and "min_blend" in modifier_data:
+            # Modifier has two blendshapes, with opposite values around 0
+            if v > 0:
+                max_blend = modifier_data["max_blend"]
+                return {max_blend: v} if v < max_val else {max_blend: max_val}
             else:
-                label = tlabel
-            self.label = " ".join([word.capitalize() for word in label])
-            # Guess a suitable image path from modifier name
-            tlabel = modifier_data["target"].replace("|", "-").split("-")
-            # image = modifier_image(("%s.png" % "-".join(tlabel)).lower())
-            self.image = None
-        else:
-            print(f"No target for modifier {self.full_name}. Is this a macrovar modifier?")
-            return
-        # Blendshapes are named based on the modifier name
-        self.blend = Tf.MakeValidIdentifier(modifier_data["target"])        
-        self.min_blend = None
-        self.max_blend = None
-        if "min" in modifier_data and "max" in modifier_data:
-            # Some modifiers adress two blendshapes in either direction
-            self.min_blend = Tf.MakeValidIdentifier(f"{self.blend}_{modifier_data['min']}")
-            self.max_blend = Tf.MakeValidIdentifier(f"{self.blend}_{modifier_data['max']}")
-            self.blend = None
-            self.min_val = -1
-        else:
-            # Some modifiers only adress one blendshape
-            self.min_val = 0
-
-        # Initialize superclass after checking data (prevent unused value model and fn)
-        super().__init__(group, modifier_data)
-
-    def get_modifier_fn(self) -> dict:
-        def modifier_fn(model: ui.SimpleFloatModel) -> dict:
-            """Simple range-based function for target modifiers"""
-            value = model.get_value_as_float()
-            if self.max_blend and self.min_blend:
-                if value > 0:
-                    return {self.max_blend: value, self.min_blend: 0}
-                else:
-                    return {self.max_blend: 0, self.min_blend: -value}
+                min_blend = modifier_data["min_blend"]
+                # Invert the value for the min blendshape, as blendshape weights are always positive but the modifier
+                # value can be negative
+                return {min_blend: -v} if v > min_val else {min_blend: min_val}
+        elif "blend" in modifier_data:
+            blend = modifier_data["blend"]
+            if v > min_val and v < max_val:
+                return {blend: v}
+            elif v <= min_val:
+                return {blend: min_val}
             else:
-                return {self.blend: value}
-        return modifier_fn
+                return {blend: max_val}
+        else:
+            raise ValueError("Target modifier data must contain either a 'max_blend' and 'min_blend' or 'blend' key.")
 
-class MacroModifier(Modifier):
-    """More complicated modifier that changes a variable set of targets based on a macrovar.
+    def _get_blendshapes_for_macrovar(modifier_data: dict, v) -> dict:
 
-    Attributes
-    ----------
-    macrovar: str
-        The name of the macrovar to use
-    label: str
-        The label to use for the modifier
-    """
-    _macro_map = None
-    
-    @classmethod
-    def get_macro_map(cls):
-        if not cls._macro_map:
-            manager = omni.kit.app.get_app().get_extension_manager()
-            ext_id = manager.get_enabled_extension_id("siborg.create.human")
-            ext_path = manager.get_extension_path(ext_id)
-            path = os.path.join(ext_path, "data", "modifiers", "macro.json")
-            with open(path, "r") as f:
-                cls._macro_map = json.load(f)
-        return cls._macro_map
+        def __weight_for_part(part, value):
+            lower_bound = part["lowest"]
+            upper_bound = part["highest"]
+            if lower_bound <= value <= upper_bound:
+                range_span = upper_bound - lower_bound
+                if range_span == 0:
+                    return None  # Avoid division by zero
+                weight_high = (value - lower_bound) / range_span
+                return {
+                    "low": part["low"],
+                    "high": part["high"],
+                    "weight_low": 1 - weight_high,
+                    "weight_high": weight_high,
+                }
+            return None
 
-    def __init__(self, group, modifier_data: dict):
-        if "macrovar" not in modifier_data:
-            print(f"No macrovar for modifier {self.full_name}. Is this a target modifier?")
-            return
-        self.image = None
+        def __weights_for_target(macrotargets, values):
+            weights = {}
+            for target, parts in macrotargets.items():
+                value = values.get(target, modifier_data.get("center", 0.5))  # Use center if value not provided
+                for part in parts["parts"]:
+                    weight = __weight_for_part(part, value)
+                    if weight:
+                        weights[target] = weight
+                        break
+            return weights
+        
+        def __compose_blendshapenames(combinations, weights):
+            blendshapes = {}
+            for combo_name, combo_parts in combinations.items():
+                parts = []
+                combo_weights = 1
+                for part in combo_parts:
+                    if part in weights:
+                        weight_info = weights[part]
+                        low_label = weight_info["low"]
+                        high_label = weight_info["high"]
+                        # Choose label based on higher weight
+                        chosen_label = low_label if weight_info["weight_low"] > weight_info["weight_high"] else high_label
+                        parts.append(chosen_label)
+                        combo_weights *= max(weight_info["weight_low"], weight_info["weight_high"])
+                    else:
+                        parts.append("unknown")  # Placeholder if no weight data is available
 
-        # Initialize superclass after checking data (prevent unused value model and fn)
-        super().__init__(group, modifier_data)
-        self.macrovar = modifier_data["macrovar"]
-        self.label = self.macrovar.capitalize()
+                blendshape = "-".join(parts)
+                blendshapes[blendshape] = combo_weights
+            return blendshapes
 
-    def get_modifier_fn(self) -> Callable:
-        def modifier_fn(model: ui.SimpleFloatModel, macro_variables: Dict[str, float]) -> dict:
-            """Calculate blendshape weights based on modifier value and all macrovars"""
-            value = model.get_value_as_float()
-            macro_variables[self.macrovar] = value
-            parsed_targets = {}
-            # Parse the macrotargets section
-            for macro_var, details in self.get_macro_map()['macrotargets'].items():
-                if macro_var in macro_variables:
-                    value = macro_variables[macro_var]
-                    for part in details['parts']:
-                        if part['lowest'] <= value <= part['highest']:
-                            # Construct target name
-                            target_name = f"{macro_var}-{part['low']}.target" if value <= (part['highest'] + part['lowest']) / 2 else f"{macro_var}-{part['high']}.target"
-
-                            # Calculate weight using linear interpolation
-                            weight = interpolate(value, part['lowest'], 0, part['highest'], 1)
-
-                            parsed_targets[target_name] = weight
-                            break
-            return parsed_targets
-        return modifier_fn
+        def __normalize_weights(blendshapes):
+            total_weight = sum(blendshapes.values())
+            if total_weight == 0:
+                return blendshapes  # Avoid division by zero
+            # Normalize each weight by dividing by the total weight
+            for key in blendshapes:
+                blendshapes[key] /= total_weight
+            return blendshapes
+        
 
 
-def interpolate(x, x1, y1, x2, y2):
-    return y1 + (x - x1) * (y2 - y1) / (x2 - x1)
-
-def parse_modifiers():
-    """Parses modifiers from a json file for use in the UI"""
-    manager = omni.kit.app.get_app().get_extension_manager()
-    ext_id = manager.get_enabled_extension_id("siborg.create.human")
-    ext_path = manager.get_extension_path(ext_id)
-
-    files = ["modeling_modifiers.json", "bodyshapes_modifiers.json", "measurement_modifiers.json"]
-
-    json_paths = [os.path.join(ext_path, "data", "modifiers", f) for f in files]
-
-    groups = defaultdict(list)
-    modifiers = []
-
-    for path in json_paths:
-        with open(path, "r") as f:
-            data = json.load(f)
-            for group in data:
-                groupname = group["group"].capitalize()
-                for modifier_data in group["modifiers"]:
-                    if "target" in modifier_data:
-                        modifier = TargetModifier(groupname, modifier_data)
-                    elif "macrovar" in modifier_data:
-                        modifier = MacroModifier(groupname, modifier_data)
-                    # Add the modifier to the group
-                    groups[groupname].append(modifier)
-                    # Add the modifier to the list of all modifiers (for tracking changes)
-                    modifiers.append(modifier)
-
-    return groups, modifiers
+    if "macrovar" in modifier_data:
+        return _get_blendshapes_for_macrovar(modifier_data, v)
+    else:
+        try:
+            return _get_blendshapes_for_target(modifier_data, v)
+        except ValueError as e:
+            raise ValueError(f"Macrovar modifiers must contain a 'Macrovar' key. {e}")

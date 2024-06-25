@@ -7,12 +7,11 @@ from pxr import Gf, Tf, Usd, UsdGeom, UsdSkel
 
 
 def build_skeleton(stage: Usd.Stage, skel_root: UsdSkel.Root, ext_path: str, name: str = "skeleton"):
-    # Get all meshes that are not joints
-    non_joint_meshes = [
-        m for m in skel_root.GetPrim().GetChildren() if m.IsA(UsdGeom.Mesh) and not m.GetName().startswith("joint")
-    ]
+
     rig = load_skel_json(os.path.join(ext_path, "data", "rigs", "cmu_mb.mhskel"))
-    verts = np.array(non_joint_meshes[0].GetPrim().GetAttribute("points").Get())
+    # verts = np.array(non_joint_meshes[0].GetPrim().GetAttribute("points").Get())
+    meshes = [child for child in skel_root.GetPrim().GetChildren() if child.IsA(UsdGeom.Mesh)]
+    verts = np.array(meshes[0].GetPrim().GetAttribute("points").Get())
     skeleton = create_skeleton(stage, skel_root, rig, verts, name)
 
     weights_json = os.path.join(ext_path, "data", "rigs", "weights.cmu_mb.json")
@@ -23,8 +22,8 @@ def build_skeleton(stage: Usd.Stage, skel_root: UsdSkel.Root, ext_path: str, nam
     )
     elements = joint_indices.shape[1]
 
-    # bind the skeleton to each non-joint mesh
-    for mesh in non_joint_meshes:
+    # Bind the meshes to the skeleton
+    for mesh in meshes:
         meshBinding = UsdSkel.BindingAPI.Apply(mesh.GetPrim())
         meshBinding.CreateSkeletonRel().AddTarget(skeleton.GetPrim().GetPath())
         meshBinding.CreateJointIndicesPrimvar(constant=False, elementSize=elements).Set(joint_indices)
@@ -41,7 +40,7 @@ def create_skeleton(stage, skel_root, rig, mesh_verts, name="skeleton") -> UsdSk
     rootBinding.CreateSkeletonRel().AddTarget(skeleton.GetPrim().GetPath())
 
     # Determine the root, which has no parent. If there are multiple roots, use the last one.
-    root = [name for name, item in rig.items() if item["parent"] == None][-1]
+    root = [name for name, item in rig.items() if item["parent"] is None][-1]
 
     visited = []  # List to keep track of visited bones.
     queue = [[root, rig[root]]]  # Initialize a queue
