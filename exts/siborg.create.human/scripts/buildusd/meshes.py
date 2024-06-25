@@ -170,5 +170,7 @@ def combine_joint_meshes(meshes):
 def load_basemesh(stage, rootPath, base_mesh_file):
     meshes = load_obj(base_mesh_file)
     meshes = combine_joint_meshes(meshes)
+    mesh_prims = []
     for m in meshes:
-        create_geom(stage, rootPath.AppendChild(m.name), m)
+        mesh_prims.append(create_geom(stage, rootPath.AppendChild(m.name), m))
+    return mesh_prims

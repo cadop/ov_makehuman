@@ -8,6 +8,7 @@ from pxr import Sdf, Usd, UsdGeom, UsdSkel
 from skeletons import build_skeleton
 from targets import import_targets
 from modifiers import import_modifiers
+import materials
 
 
 def make_human():
@@ -35,7 +36,14 @@ def make_human():
 
     # Load the base mesh from a file
     base_mesh_file = os.path.join(ext_path, "data", "3dobjs", "base.obj")
-    load_basemesh(stage, rootPath, base_mesh_file)
+    meshes = load_basemesh(stage, rootPath, base_mesh_file)
+
+    # Create a material
+    mtl = materials.create_preview_surface_material(stage)
+
+    # Bind the material to the meshes
+    for mesh in meshes:
+        materials.bind_material(mesh, mtl)
 
     # Create the skeleton
     skeleton = build_skeleton(stage, skel_root, ext_path)
