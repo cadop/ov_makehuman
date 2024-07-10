@@ -1,7 +1,8 @@
 from pxr import Sdf, UsdShade, Usd
 
 def create_preview_surface_material(stage):
-    mtl_path = Sdf.Path("/World/Looks/PreviewSurface")
+    default_prim = stage.GetDefaultPrim()
+    mtl_path = default_prim.GetPath().AppendChild("Looks").AppendChild("PreviewSurface")
     mtl = UsdShade.Material.Define(stage, mtl_path)
     shader = UsdShade.Shader.Define(stage, mtl_path.AppendPath("Shader"))
     shader.CreateIdAttr("UsdPreviewSurface")
