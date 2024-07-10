@@ -8,9 +8,11 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 
 
-def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: str):
+def blendshape_to_skeltarget(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, output_path: str):
     """Creates a .skeltarget file for a given blendshape. The file contains the transformations applied to the skeleton
     joints when referencing the joint helper geometry after the blendshape has been applied."""
+
+    blendshape_name = blendshape.GetPrim().GetName()
 
     # Apply the blendshape to the mesh at 100% weight
     points = compute_blendshape_points(prim, blendshape_name, 1)
@@ -19,6 +21,17 @@ def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: 
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
     skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
     xforms = joints_from_points(skel, points, 0)
+
+    # Store the skeletal transformations in a new single-frame animation
+    skeltargets_path = prim.GetPath().AppendChild("skeltargets")
+    skeltarget_path = skeltargets_path.AppendChild(f"{blendshape_name}_skeltarget")
+    skeltarget = UsdSkel.Animation.Define(prim.GetStage(), skeltarget_path)
+    skeltarget.SetTransforms(xforms, 0)
+    skeltarget.CreateJointsAttr().Set(skel.GetJointsAttr().Get())
+    
+    # Create a custom rel to the new skeltarget animation on the corresponding blendshape
+    rel_skeltarget = blendshape.GetPrim().CreateRelationship("skeltarget")
+    rel_skeltarget.AddTarget(skeltarget.GetPath())
 
     # Save the skeletal transformations to a .skeltarget file. A .skeltarget file is named after the blendshape it
     # corresponds to and takes the form of a JSON file with the following structure:
@@ -49,16 +62,6 @@ def blendshape_to_skeltarget(prim: Usd.Prim, blendshape_name: str, output_path: 
 
     with open(output_path, "w") as f:
         json.dump(data, f, indent=4)
-
-    # Skeltargets are effectively just skeletal animations, so we can also save the skeletal transformations to a .usda
-    # stage = Usd.Stage.CreateInMemory()
-    # skelroot = UsdSkel.Root.Define(stage, prim.GetPath().AppendChild("skeltargets"))
-    # stage.SetDefaultPrim(skelroot.GetPrim())
-    # skel = UsdSkel.Skeleton.Define(stage, skelroot.GetPath().AppendChild(f"skeleton_{blendshape_name}"))
-    # skelCache = UsdSkel.Cache()
-    # skelQuery = skelCache.GetSkelQuery(skel)
-    # skel.CreateJointsAttr(skelQuery.GetJointOrder())
-    # stage.GetRootLayer().Export(f"{output_path}.usda")
 
 
 def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> Vt.Vec3fArray:
@@ -322,7 +325,7 @@ if __name__ == "__main__":
         blendshape_name = blendshape.GetPrim().GetName()
         # Store the skeletal transformations in a .skeltarget file
         skeltarget_path = os.path.join(data_path, "skeltargets", f"{blendshape_name}.skeltarget")
-        blendshape_to_skeltarget(prim, blendshape_name, skeltarget_path)
+        blendshape_to_skeltarget(prim, blendshape, skeltarget_path)
 
         # Create a new blendshape without the skeletal transformations and bind it to the mesh and animation
         skelfree_blendshape = separate_blendshape(prim, blendshape, skeltarget_path)
