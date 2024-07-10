@@ -20,13 +20,13 @@ def blendshape_to_skeltarget(prim: Usd.Prim, blendshape: UsdSkel.BlendShape, out
     # Move the skeleton to the points defined by the helper geometry
     skel_path = UsdSkel.BindingAPI(prim).GetSkeletonRel().GetTargets()[0]
     skel = UsdSkel.Skeleton.Get(prim.GetStage(), skel_path)
-    xforms = joints_from_points(skel, points, 0)
+    xforms = joints_from_points(skel, points)
 
     # Store the skeletal transformations in a new single-frame animation
     skeltargets_path = prim.GetPath().AppendChild("skeltargets")
     skeltarget_path = skeltargets_path.AppendChild(f"{blendshape_name}_skeltarget")
     skeltarget = UsdSkel.Animation.Define(prim.GetStage(), skeltarget_path)
-    skeltarget.SetTransforms(xforms, 0)
+    skeltarget.SetTransforms(xforms)
     skeltarget.CreateJointsAttr().Set(skel.GetJointsAttr().Get())
     
     # Create a custom rel to the new skeltarget animation on the corresponding blendshape
@@ -110,7 +110,7 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> Vt.Vec3f
     # Get the animation of the skeleton
     anim_path = UsdSkel.BindingAPI(skel).GetAnimationSourceRel().GetTargets()[0]
     anim = UsdSkel.Animation.Get(prim.GetStage(), anim_path)
-    anim.SetTransforms(xforms, 0)
+    anim.SetTransforms(xforms)
 
     # Query the skeleton and geometry
     skelRoot = UsdSkel.Root(prim)
@@ -120,20 +120,20 @@ def calculate_skeltarget_verts(prim: Usd.Prim, skeltarget_path: str) -> Vt.Vec3f
     skinningQuery = skelCache.GetSkinningQuery(body)
 
     # Get the points of the mesh
-    points = body.GetAttribute("points").Get(0)
+    points = body.GetAttribute("points").Get()
 
-    # Apply the joint animation to the skinned mesh
-    skinned_points = applyJointAnimation(skinningQuery, skelQuery, 0, points)
+    # Apply the joint animation to the skinned mesh at the earliest timecode
+    skinned_points = applyJointAnimation(skinningQuery, skelQuery, Usd.TimeCode.EarliestTime(), points)
 
     # # Reset the joint positions to rest pose so they don't stack
-    xforms = skelQuery.ComputeJointLocalTransforms(0, True)
-    anim.SetTransforms(xforms, 0)
+    xforms = skelQuery.ComputeJointLocalTransforms(atRest=True)
+    anim.SetTransforms(xforms)
 
     return skinned_points
 
 
 def applyJointAnimation(
-    skinning_query: UsdSkel.SkinningQuery, skel_query: UsdSkel.SkeletonQuery, time: float, points: Vt.Vec3fArray
+    skinning_query: UsdSkel.SkinningQuery, skel_query: UsdSkel.SkeletonQuery, time: Usd.TimeCode, points: Vt.Vec3fArray
 ):
     """Apply the joint animation to the skinned mesh at a given time. Adapted from
     https://github.com/TheFoundryVisionmongers/KatanaUsdPlugins/blob/main/lib/usdKatana/utils.cpp"""
@@ -273,7 +273,7 @@ def compute_blendshape_points(prim: Usd.Prim, blendshape_name: str, weight: floa
     return new_points
 
 
-def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray, time: int) -> Vt.Matrix4dArray:
+def joints_from_points(resize_skel: UsdSkel.Skeleton, points: Vt.Vec3fArray) -> Vt.Matrix4dArray:
     """Compute the joint transforms for a skeleton from a set of points. Requires that the skeleton has customdata
     with a mapping from each bone to its set of vertices. Transforms are returned in local space."""
     # Get mapping from each bone to its set of vertices
