@@ -18,6 +18,9 @@ def make_human():
     # Stage must have a valid start time code for animation to work
     stage.SetStartTimeCode(1)
 
+    # Set the up axis
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+
     # Set the units/scale
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
 
