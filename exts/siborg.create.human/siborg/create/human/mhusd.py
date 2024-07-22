@@ -318,7 +318,7 @@ def add_to_scene():
 
         return stage.GetPrimAtPath(prim_path)
 
-def edit_blendshapes(prim: Usd.Prim, blendshapes: Dict[str, float], time = 0):
+def edit_blendshapes(prim: Usd.Prim, blendshapes: Dict[str, float]):
     """Edit the blendshapes of a human animation
 
     Parameters
@@ -342,7 +342,7 @@ def edit_blendshapes(prim: Usd.Prim, blendshapes: Dict[str, float], time = 0):
     animation_paths = UsdSkel.BindingAPI(skeleton).GetAnimationSourceRel().GetTargets()
     animation_path = next(path for path in animation_paths if path.elementString == "target_anim")
     animation = UsdSkel.Animation.Get(stage, animation_path)
-    apply_weights(animation, blendshapes, time)
+    apply_weights(animation, blendshapes, current_timecode())
 
 
 def add_joints_attr(skel_cache, skel, anim):
@@ -589,8 +589,8 @@ def read_modifiers(human: Usd.Prim) -> dict:
     animation = UsdSkel.Animation.Get(human.GetStage(), animation_path)
 
     # Find any blendshapes with non-zero weights
-    blendshapes = np.array(animation.GetBlendShapesAttr().Get(0))
-    weights = np.array(animation.GetBlendShapeWeightsAttr().Get(0))
+    blendshapes = np.array(animation.GetBlendShapesAttr().Get())
+    weights = np.array(animation.GetBlendShapeWeightsAttr().Get(current_timecode()))
     blendshapes = blendshapes[weights > 0]
     weights = weights[weights > 0]
     # Find the modifiers that correspond to these blendshapes. Modifiers customdata is a hierarchical dictionary and
@@ -626,3 +626,11 @@ def read_modifiers(human: Usd.Prim) -> dict:
 def read_groups(human: Usd.Prim) -> dict:
     """Load modifier groups for building the UI"""
     return human.GetPrim().GetCustomDataByKey("groups") or {}
+
+
+def current_timecode() -> Usd.TimeCode:
+    """Get the current timecode from the timeline"""
+    timeline_interface = omni.timeline.get_timeline_interface()
+    timecodes_per_second = timeline_interface.get_time_codes_per_seconds()
+    time = timeline_interface.get_current_time()
+    return Usd.TimeCode(time * timecodes_per_second)
