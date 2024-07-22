@@ -363,7 +363,7 @@ def compose_xforms(source_xforms: Vt.Matrix4dArray, target_skeleton: UsdSkel.Ske
     return Vt.Matrix4dArray().FromNumpy(new_xforms)
 
 
-def apply_weights(animation: UsdSkel.Animation, blendshapes: Dict[str, float], time=0) -> None:
+def apply_weights(animation: UsdSkel.Animation, blendshapes: Dict[str, float], time) -> None:
     # Get existing blendshapes and weights
     current_blendshapes = animation.GetBlendShapesAttr().Get(time)
     current_weights = np.array(animation.GetBlendShapeWeightsAttr().Get(time))
