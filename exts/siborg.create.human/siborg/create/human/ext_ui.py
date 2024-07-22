@@ -1,10 +1,15 @@
 import omni.ui as ui
+import omni.usd
+import omni.kit.app
 from typing import List, Dict
-from pxr import Usd, Tf
+from pxr import Usd, Tf, Trace
 from siborg.create.human.shared import data_path
 from . import mhusd
 from . import styles
 from . import modifiers
+from omni.kit.property.usd import ADDITIONAL_CHANGED_PATH_EVENT_TYPE
+from .shared import current_timecode
+
 
 class ModifierUI(ui.Frame):
     """UI Widget for displaying and modifying human parameters dynamically based on custom data on the human prim."""
@@ -18,11 +23,20 @@ class ModifierUI(ui.Frame):
         self.group_data: Dict[str, dict] = {}
         self.macrovars: Dict[str, float] = {}
         self.human_prim = None
+        self.timecode = current_timecode()
+
+        # self._message_bus = omni.kit.app.get_app().get_message_bus_event_stream()
 
         self.set_build_fn(self._build_widget)
 
     def _build_widget(self):
         """Build the widget from scratch every time a human is selected"""
+
+        # Register a listener for when the USD stage changes, so we can update the UI during playback
+        stage = omni.usd.get_context().get_stage()
+        self._listener = Tf.Notice.Register(Usd.Notice.ObjectsChanged, self._on_usd_changed, stage)
+
+        # self._bus_sub = self._message_bus.create_subscription_to_pop_by_type(ADDITIONAL_CHANGED_PATH_EVENT_TYPE, self._on_bus_event)
 
         with self:
             with ui.ScrollingFrame():
@@ -95,6 +109,17 @@ class ModifierUI(ui.Frame):
         self.modifier_data = mhusd.read_modifiers(human_prim)
         self.group_data = mhusd.read_groups(human_prim)
         self._build_widget()
+
+
+    @Trace.TraceFunction
+    def _on_usd_changed(self, notice, stage):
+        """Callback for when the USD stage changes"""
+        if self.human_prim.GetStage() != stage:
+            return
+        if self.timecode == current_timecode():
+            return
+        self.load_values(self.human_prim)
+
 
     def destroy(self):
         """Destroys the ParamPanel instance as well as the models attached to each group of parameters"""
